@@ -63,6 +63,9 @@ val AUTO_RECORDING_START = booleanPreferencesKey("is-auto-recording-start")
 val AUTO_SWITCH_BACK = booleanPreferencesKey("auto-switch-back")
 val ADD_TRAILING_SPACE = booleanPreferencesKey("add-trailing-space")
 val POSTPROCESSING = stringPreferencesKey("postprocessing")
+val PROMPT = stringPreferencesKey("prompt")
+val AUTO_STOP_RECORDING = booleanPreferencesKey("auto-stop-recording")
+val AUDIO_EFFECTS = booleanPreferencesKey("audio-effects")
 
 class MainActivity : AppCompatActivity() {
     private var setupSettingItemsDone: Boolean = false
@@ -327,6 +330,15 @@ class MainActivity : AppCompatActivity() {
                 SettingText(R.id.field_language_code, LANGUAGE_CODE, getString(R.string.settings_option_openai_api_default_language)),
                 SettingText(R.id.field_api_key, API_KEY),
                 SettingText(R.id.field_model, MODEL, getString(R.string.settings_option_openai_api_default_model)),
+                SettingText(R.id.field_prompt, PROMPT),
+                SettingDropdown(R.id.spinner_auto_stop_recording, AUTO_STOP_RECORDING, hashMapOf(
+                    getString(R.string.settings_option_yes) to true,
+                    getString(R.string.settings_option_no) to false,
+                ), false),
+                SettingDropdown(R.id.spinner_audio_effects, AUDIO_EFFECTS, hashMapOf(
+                    getString(R.string.settings_option_yes) to true,
+                    getString(R.string.settings_option_no) to false,
+                ), false),
                 SettingDropdown(R.id.spinner_auto_recording_start, AUTO_RECORDING_START, hashMapOf(
                     getString(R.string.settings_option_yes) to true,
                     getString(R.string.settings_option_no) to false,

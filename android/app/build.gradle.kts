@@ -8,7 +8,9 @@ android {
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.example.whispertoinput"
+        // Private fork: distinct from the upstream application id so both can be installed
+        // side by side and upstream updates never overwrite this build.
+        applicationId = "com.yair.whispergroqinput"
         minSdk = 24
         targetSdk = 34
         versionCode = 4

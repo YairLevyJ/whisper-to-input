@@ -33,6 +33,7 @@ import okhttp3.Request
 import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.asRequestBody
 import java.io.File
+import java.net.URLEncoder
 import com.github.liuyueyi.quick.transfer.ChineseUtils
 
 class WhisperTranscriber {
@@ -43,7 +44,8 @@ class WhisperTranscriber {
         val apiKey: String,
         val model: String,
         val postprocessing: String,
-        val addTrailingSpace: Boolean
+        val addTrailingSpace: Boolean,
+        val prompt: String
     )
 
     private val TAG = "WhisperTranscriber"
@@ -59,7 +61,7 @@ class WhisperTranscriber {
     ) {
         suspend fun makeWhisperRequest(): String {
             // Retrieve configs
-            val (endpoint, languageCode, speechToTextBackend, apiKey, model, postprocessing, addTrailingSpace) = context.dataStore.data.map { preferences: Preferences ->
+            val config: Config = context.dataStore.data.map { preferences: Preferences ->
                 Config(
                     preferences[ENDPOINT] ?: "",
                     preferences[LANGUAGE_CODE] ?: "",
@@ -67,9 +69,12 @@ class WhisperTranscriber {
                     preferences[API_KEY] ?: "",
                     preferences[MODEL] ?: "",
                     preferences[POSTPROCESSING] ?: context.getString(R.string.settings_option_no_conversion),
-                    preferences[ADD_TRAILING_SPACE] ?: false
+                    preferences[ADD_TRAILING_SPACE] ?: false,
+                    preferences[PROMPT] ?: ""
                 )
             }.first()
+            val (endpoint, languageCode, speechToTextBackend, apiKey, model, postprocessing, addTrailingSpace) = config
+            val prompt = config.prompt
 
             // Foolproof message
             if (endpoint == "") {
@@ -86,7 +91,8 @@ class WhisperTranscriber {
                 endpoint,
                 languageCode,
                 apiKey,
-                model
+                model,
+                prompt
             )
             val response = client.newCall(request).execute()
 
@@ -170,7 +176,8 @@ class WhisperTranscriber {
         endpoint: String,
         languageCode: String,
         apiKey: String,
-        model: String
+        model: String,
+        prompt: String
     ): Request {
         // Please refer to the following for the endpoint/payload definitions:
         // OpenAI API:
@@ -199,9 +206,10 @@ class WhisperTranscriber {
         val fileBody: RequestBody = file.asRequestBody(mediaType.toMediaTypeOrNull())
         val requestBody: RequestBody = MultipartBody.Builder().apply {
             setType(MultipartBody.FORM)
-            // Determine filename based on media type
-            val formDataFilename = if (mediaType == "audio/ogg") "@audio.ogg" else "@audio.m4a"
-            
+            // OpenAI-compatible backends sniff the audio format from the filename extension,
+            // so it has to match the actual payload (16 kHz mono PCM WAV).
+            val formDataFilename = "audio.wav"
+
             // Add file to payload
             if (speechToTextBackend == context.getString(R.string.settings_option_openai_api) || 
                 speechToTextBackend == context.getString(R.string.settings_option_nvidia_nim)) {
@@ -217,6 +225,14 @@ class WhisperTranscriber {
             if (speechToTextBackend == context.getString(R.string.settings_option_nvidia_nim)) {
                 addFormDataPart("language", languageCode)
                 addFormDataPart("response_format", "text")
+            }
+            // Optional context/vocabulary hint. Both OpenAI-compatible endpoints accept it;
+            // Whisper ASR Webservice takes it as a query parameter instead (added to the URL below).
+            if (prompt.isNotBlank() &&
+                (speechToTextBackend == context.getString(R.string.settings_option_openai_api) ||
+                    speechToTextBackend == context.getString(R.string.settings_option_nvidia_nim))
+            ) {
+                addFormDataPart("prompt", prompt)
             }
         }.build()
 
@@ -235,7 +251,15 @@ class WhisperTranscriber {
         val url = when (speechToTextBackend) {
             context.getString(R.string.settings_option_openai_api),
             context.getString(R.string.settings_option_whisper_asr_webservice) -> {
-                "$endpoint?encode=true&task=transcribe&language=$languageCode&word_timestamps=false&output=txt"
+                val baseUrl =
+                    "$endpoint?encode=true&task=transcribe&language=$languageCode&word_timestamps=false&output=txt"
+                if (prompt.isNotBlank() &&
+                    speechToTextBackend == context.getString(R.string.settings_option_whisper_asr_webservice)
+                ) {
+                    "$baseUrl&initial_prompt=${URLEncoder.encode(prompt, "UTF-8")}"
+                } else {
+                    baseUrl
+                }
             }
             else -> endpoint
         }

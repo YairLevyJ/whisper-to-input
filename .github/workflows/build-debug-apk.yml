@@ -1,0 +1,50 @@
+name: Build debug APK
+
+# The debug APK is built in CI because it is the only place in this fork's workflow
+# with access to the Android SDK. The resulting APK is attached to the run as an
+# artifact, so it can be downloaded and installed without a local Android toolchain.
+
+on:
+  push:
+    branches: ["**"]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      # AGP 8.1 requires JDK 17; the runner's default JDK may be newer.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      # Makes sure the SDK is present and its licenses are accepted up front. Without this,
+      # AGP can block indefinitely waiting for a license prompt that has nowhere to read from.
+      - uses: android-actions/setup-android@v3
+        with:
+          accept-android-sdk-licenses: true
+          packages: 'platforms;android-34 build-tools;34.0.0 platform-tools'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Show toolchain
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          ls "$ANDROID_HOME/platforms" "$ANDROID_HOME/build-tools" || true
+          java -version
+
+      - name: Build debug APK
+        working-directory: android
+        # --console=plain keeps the output non-interactive and line-oriented, so a stall is
+        # visible in the log instead of hidden behind the rich console renderer.
+        run: ./gradlew assembleDebug --console=plain --no-daemon --stacktrace
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: whisper-groq-input-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error

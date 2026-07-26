@@ -41,10 +41,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 
-private const val RECORDED_AUDIO_FILENAME_M4A = "recorded.m4a"
-private const val RECORDED_AUDIO_FILENAME_OGG = "recorded.ogg"
-private const val AUDIO_MEDIA_TYPE_M4A = "audio/mp4"
-private const val AUDIO_MEDIA_TYPE_OGG = "audio/ogg"
+private const val RECORDED_AUDIO_FILENAME_WAV = "recorded.wav"
+private const val AUDIO_MEDIA_TYPE_WAV = "audio/wav"
 private const val IME_SWITCH_OPTION_AVAILABILITY_API_LEVEL = 28
 
 class WhisperInputService : InputMethodService() {
@@ -52,8 +50,8 @@ class WhisperInputService : InputMethodService() {
     private val whisperTranscriber: WhisperTranscriber = WhisperTranscriber()
     private var recorderManager: RecorderManager? = null
     private var recordedAudioFilename: String = ""
-    private var audioMediaType: String = AUDIO_MEDIA_TYPE_M4A
-    private var useOggFormat: Boolean = false
+    private var useVoiceActivityDetection: Boolean = false
+    private var useAudioEffects: Boolean = false
     private var isFirstTime: Boolean = true
 
     private fun transcriptionCallback(text: String?) {
@@ -77,32 +75,30 @@ class WhisperInputService : InputMethodService() {
         whisperKeyboard.reset()
     }
 
-    private suspend fun updateAudioFormat() {
-        val backend = dataStore.data.map { preferences: Preferences ->
-            preferences[SPEECH_TO_TEXT_BACKEND] ?: getString(R.string.settings_option_openai_api)
+    private suspend fun updateRecordingSettings() {
+        useVoiceActivityDetection = dataStore.data.map { preferences: Preferences ->
+            preferences[AUTO_STOP_RECORDING] ?: false
         }.first()
-        
-        useOggFormat = backend == getString(R.string.settings_option_nvidia_nim)
-        if (useOggFormat) {
-            recordedAudioFilename = "${externalCacheDir?.absolutePath}/${RECORDED_AUDIO_FILENAME_OGG}"
-            audioMediaType = AUDIO_MEDIA_TYPE_OGG
-        } else {
-            recordedAudioFilename = "${externalCacheDir?.absolutePath}/${RECORDED_AUDIO_FILENAME_M4A}"
-            audioMediaType = AUDIO_MEDIA_TYPE_M4A
-        }
+        useAudioEffects = dataStore.data.map { preferences: Preferences ->
+            preferences[AUDIO_EFFECTS] ?: false
+        }.first()
     }
 
     override fun onCreateInputView(): View {
         // Initialize members with regard to this context
         recorderManager = RecorderManager(this)
 
+        // All backends receive the same 16 kHz mono PCM WAV file, so the path is fixed.
+        // It must be assigned before the keyboard is set up, since setup() queries shouldShowRetry().
+        recordedAudioFilename = "${externalCacheDir?.absolutePath}/${RECORDED_AUDIO_FILENAME_WAV}"
+
         // Preload conversion table
         ChineseUtils.preLoad(true, TransType.SIMPLE_TO_TAIWAN)
         ChineseUtils.preLoad(true, TransType.TAIWAN_TO_SIMPLE)
 
-        // Initialize audio format based on backend setting
+        // Initialize recording behavior based on settings
         CoroutineScope(Dispatchers.Main).launch {
-            updateAudioFormat()
+            updateRecordingSettings()
         }
 
         // Should offer ime switch?
@@ -119,6 +115,14 @@ class WhisperInputService : InputMethodService() {
         // Sets up recorder manager
         recorderManager!!.setOnUpdateMicrophoneAmplitude { amplitude ->
             onUpdateMicrophoneAmplitude(amplitude)
+        }
+        // Voice activity detection drives the same keyboard transitions as the mic/cancel buttons,
+        // so the FSM stays the single source of truth for the keyboard state.
+        recorderManager!!.setOnAutoStopRecording {
+            whisperKeyboard.tryStartTranscribing("")
+        }
+        recorderManager!!.setOnAutoCancelRecording {
+            whisperKeyboard.tryCancelRecording()
         }
 
         // Returns the keyboard after setting it up and inflating its layout
@@ -146,7 +150,11 @@ class WhisperInputService : InputMethodService() {
             return
         }
 
-        recorderManager!!.start(this, recordedAudioFilename, useOggFormat)
+        recorderManager!!.start(
+            recordedAudioFilename,
+            useVoiceActivityDetection,
+            useAudioEffects
+        )
     }
 
     // when mic amplitude is updated, notify the keyboard
@@ -163,7 +171,7 @@ class WhisperInputService : InputMethodService() {
         recorderManager!!.stop()
         whisperTranscriber.startAsync(this,
             recordedAudioFilename,
-            audioMediaType,
+            AUDIO_MEDIA_TYPE_WAV,
             attachToEnd,
             { transcriptionCallback(it) },
             { transcriptionExceptionCallback(it) })
@@ -233,8 +241,8 @@ class WhisperInputService : InputMethodService() {
         // Automatically starts recording after switching to Whisper Input. (if settings enabled)
         // Dispatch a coroutine to do this task.
         CoroutineScope(Dispatchers.Main).launch {
-            // Update audio format based on current backend setting
-            updateAudioFormat()
+            // Pick up any settings changed since the keyboard was last shown
+            updateRecordingSettings()
             if (!isFirstTime) return@launch
             isFirstTime = false
             val isAutoStartRecording = dataStore.data.map { preferences: Preferences ->
