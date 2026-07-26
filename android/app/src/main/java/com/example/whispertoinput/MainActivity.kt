@@ -62,10 +62,35 @@ val MODEL = stringPreferencesKey("model")
 val AUTO_RECORDING_START = booleanPreferencesKey("is-auto-recording-start")
 val AUTO_SWITCH_BACK = booleanPreferencesKey("auto-switch-back")
 val ADD_TRAILING_SPACE = booleanPreferencesKey("add-trailing-space")
-val POSTPROCESSING = stringPreferencesKey("postprocessing")
+val PROMPT = stringPreferencesKey("prompt")
+val AUTO_STOP_RECORDING = booleanPreferencesKey("auto-stop-recording")
+val AUDIO_EFFECTS = booleanPreferencesKey("audio-effects")
+
+// Stable values persisted for the dropdown settings. These must never be display strings:
+// display strings are translated, so storing them would break every comparison against them
+// as soon as the UI language changes.
+const val BACKEND_OPENAI_API = "openai-api"
+const val BACKEND_WHISPER_ASR_WEBSERVICE = "whisper-asr-webservice"
+const val BACKEND_NVIDIA_NIM = "nvidia-nim"
+
+// Upstream persisted the English display label instead of a stable value. Map those onto the
+// current values so that an existing configuration survives the upgrade instead of silently
+// resetting to the defaults.
+private val LEGACY_SETTING_VALUES = mapOf(
+    "OpenAI API" to BACKEND_OPENAI_API,
+    "Whisper ASR Webservice" to BACKEND_WHISPER_ASR_WEBSERVICE,
+    "NVIDIA NIM" to BACKEND_NVIDIA_NIM,
+)
+
+fun normalizeSettingValue(value: String): String = LEGACY_SETTING_VALUES[value] ?: value
 
 class MainActivity : AppCompatActivity() {
     private var setupSettingItemsDone: Boolean = false
+
+    // Applies the selected UI language before any resource of this activity is resolved.
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(LocaleHelper.applyToContext(newBase))
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -239,6 +264,8 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    // A dropdown whose persisted value is a stable string, independent of the displayed labels.
+    // optionValues must be in the same order as the spinner's entries array.
     inner class SettingStringDropdown(
         private val viewId: Int,
         private val preferenceKey: Preferences.Key<String>,
@@ -257,59 +284,105 @@ class MainActivity : AppCompatActivity() {
                         btnApply.isEnabled = true
                         // Deal with individual spinner
                         if (parent.id == R.id.spinner_speech_to_text_backend) {
-                            val selectedItem = parent.getItemAtPosition(pos)
-                            if (selectedItem == getString(R.string.settings_option_openai_api)) {
-                                val endpointEditText: EditText = findViewById<EditText>(R.id.field_endpoint)
-                                endpointEditText.setText(getString(R.string.settings_option_openai_api_default_endpoint))
-                                val modelEditText: EditText = findViewById<EditText>(R.id.field_model)
-                                modelEditText.setText(getString(R.string.settings_option_openai_api_default_model))
-                            } else if (selectedItem == getString(R.string.settings_option_whisper_asr_webservice)) {
-                                val endpointEditText: EditText = findViewById<EditText>(R.id.field_endpoint)
-                                if (endpointEditText.text.isEmpty() ||
-                                    endpointEditText.text.toString() == getString(R.string.settings_option_openai_api_default_endpoint) ||
-                                    endpointEditText.text.toString() == getString(R.string.settings_option_nvidia_nim_default_endpoint)
-                                ) {
-                                    endpointEditText.setText(getString(R.string.settings_option_whisper_asr_webservice_default_endpoint))
-                                }
-                                val modelEditText: EditText = findViewById<EditText>(R.id.field_model)
-                                modelEditText.setText(getString(R.string.settings_option_whisper_asr_webservice_default_model))
-                            } else if (selectedItem == getString(R.string.settings_option_nvidia_nim)) {
-                                val endpointEditText: EditText = findViewById<EditText>(R.id.field_endpoint)
-                                if (endpointEditText.text.isEmpty() ||
-                                    endpointEditText.text.toString() == getString(R.string.settings_option_openai_api_default_endpoint) ||
-                                    endpointEditText.text.toString() == getString(R.string.settings_option_whisper_asr_webservice_default_endpoint)
-                                ) {
-                                    endpointEditText.setText(getString(R.string.settings_option_nvidia_nim_default_endpoint))
-                                }
-                                val modelEditText: EditText = findViewById<EditText>(R.id.field_model)
-                                modelEditText.setText(getString(R.string.settings_option_nvidia_nim_default_model))
-                                val languageCodeEditText: EditText = findViewById<EditText>(R.id.field_language_code)
-                                languageCodeEditText.setText(getString(R.string.settings_option_nvidia_nim_default_language))
-                            }
+                            onBackendSelected(optionValues[pos])
                         }
                     }
                     override fun onNothingSelected(parent: AdapterView<*>) { }
                 }
 
-                // Read data. If none, apply default value.
+                // Read data. If none, apply default value. A legacy value is rewritten in place.
                 val settingValue: String? = readSetting(preferenceKey)
-                val value: String = settingValue ?: defaultValue
-                if (settingValue == null) {
-                    writeSetting(preferenceKey, defaultValue)
+                val value: String =
+                    if (settingValue == null) defaultValue else normalizeSettingValue(settingValue)
+                if (value != settingValue) {
+                    writeSetting(preferenceKey, value)
                 }
-                val index: Int? = (0 until spinner.adapter.count).firstOrNull {
-                    spinner.adapter.getItem(it) == value
-                }
-                spinner.setSelection(index ?: 0, false)
+                spinner.setSelection(optionValues.indexOf(value).coerceAtLeast(0), false)
                 spinner.isEnabled = true
             }
         }
         override suspend fun apply() {
             if (!isDirty) return
-            val selectedItem = findViewById<Spinner>(viewId).selectedItem
-            val newValue: String = selectedItem.toString()
-            writeSetting(preferenceKey, newValue)
+            val selectedPosition = findViewById<Spinner>(viewId).selectedItemPosition
+            writeSetting(preferenceKey, optionValues[selectedPosition])
             isDirty = false
+        }
+    }
+
+    // The UI language is stored outside the DataStore, see LocaleHelper for why.
+    inner class SettingLanguageDropdown(
+        private val viewId: Int,
+        private val optionValues: List<String>
+    ): SettingItem() {
+        var languageChanged: Boolean = false
+            private set
+
+        override fun setup(): Job {
+            return CoroutineScope(Dispatchers.Main).launch {
+                val btnApply: Button = findViewById(R.id.btn_settings_apply)
+                val spinner = findViewById<Spinner>(viewId)
+                spinner.isEnabled = false
+                spinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+                    override fun onItemSelected(parent: AdapterView<*>, view: View?, pos: Int, id: Long) {
+                        if (!setupSettingItemsDone) return
+                        isDirty = true
+                        btnApply.isEnabled = true
+                    }
+                    override fun onNothingSelected(parent: AdapterView<*>) { }
+                }
+
+                val value = LocaleHelper.getLanguage(this@MainActivity)
+                spinner.setSelection(optionValues.indexOf(value).coerceAtLeast(0), false)
+                spinner.isEnabled = true
+            }
+        }
+        override suspend fun apply() {
+            if (!isDirty) return
+            val selectedPosition = findViewById<Spinner>(viewId).selectedItemPosition
+            val newValue = optionValues[selectedPosition]
+            if (newValue != LocaleHelper.getLanguage(this@MainActivity)) {
+                LocaleHelper.setLanguage(this@MainActivity, newValue)
+                languageChanged = true
+            }
+            isDirty = false
+        }
+    }
+
+    // Prefills the endpoint/model fields with the defaults of the newly selected backend.
+    private fun onBackendSelected(backend: String) {
+        val endpointEditText: EditText = findViewById(R.id.field_endpoint)
+        val modelEditText: EditText = findViewById(R.id.field_model)
+        val currentEndpoint = endpointEditText.text.toString()
+
+        when (backend) {
+            BACKEND_OPENAI_API -> {
+                endpointEditText.setText(getString(R.string.settings_option_openai_api_default_endpoint))
+                modelEditText.setText(getString(R.string.settings_option_openai_api_default_model))
+            }
+
+            BACKEND_WHISPER_ASR_WEBSERVICE -> {
+                // Only overwrite an endpoint that is empty or still another backend's default,
+                // so that a manually entered endpoint is never lost.
+                if (currentEndpoint.isEmpty() ||
+                    currentEndpoint == getString(R.string.settings_option_openai_api_default_endpoint) ||
+                    currentEndpoint == getString(R.string.settings_option_nvidia_nim_default_endpoint)
+                ) {
+                    endpointEditText.setText(getString(R.string.settings_option_whisper_asr_webservice_default_endpoint))
+                }
+                modelEditText.setText(getString(R.string.settings_option_whisper_asr_webservice_default_model))
+            }
+
+            BACKEND_NVIDIA_NIM -> {
+                if (currentEndpoint.isEmpty() ||
+                    currentEndpoint == getString(R.string.settings_option_openai_api_default_endpoint) ||
+                    currentEndpoint == getString(R.string.settings_option_whisper_asr_webservice_default_endpoint)
+                ) {
+                    endpointEditText.setText(getString(R.string.settings_option_nvidia_nim_default_endpoint))
+                }
+                modelEditText.setText(getString(R.string.settings_option_nvidia_nim_default_model))
+                val languageCodeEditText: EditText = findViewById(R.id.field_language_code)
+                languageCodeEditText.setText(getString(R.string.settings_option_nvidia_nim_default_language))
+            }
         }
     }
 
@@ -317,16 +390,31 @@ class MainActivity : AppCompatActivity() {
         setupSettingItemsDone = false
         // Add setting items here to apply functions to them
         CoroutineScope(Dispatchers.Main).launch {
+            val languageSetting = SettingLanguageDropdown(R.id.spinner_ui_language, listOf(
+                LocaleHelper.LANGUAGE_SYSTEM,
+                LocaleHelper.LANGUAGE_ENGLISH,
+                LocaleHelper.LANGUAGE_HEBREW
+            ))
             val settingItems = arrayOf(
+                languageSetting,
                 SettingStringDropdown(R.id.spinner_speech_to_text_backend, SPEECH_TO_TEXT_BACKEND, listOf(
-                    getString(R.string.settings_option_openai_api),
-                    getString(R.string.settings_option_whisper_asr_webservice),
-                    getString(R.string.settings_option_nvidia_nim)
-                ), getString(R.string.settings_option_openai_api)),
+                    BACKEND_OPENAI_API,
+                    BACKEND_WHISPER_ASR_WEBSERVICE,
+                    BACKEND_NVIDIA_NIM
+                ), BACKEND_OPENAI_API),
                 SettingText(R.id.field_endpoint, ENDPOINT, getString(R.string.settings_option_openai_api_default_endpoint)),
                 SettingText(R.id.field_language_code, LANGUAGE_CODE, getString(R.string.settings_option_openai_api_default_language)),
                 SettingText(R.id.field_api_key, API_KEY),
                 SettingText(R.id.field_model, MODEL, getString(R.string.settings_option_openai_api_default_model)),
+                SettingText(R.id.field_prompt, PROMPT),
+                SettingDropdown(R.id.spinner_auto_stop_recording, AUTO_STOP_RECORDING, hashMapOf(
+                    getString(R.string.settings_option_yes) to true,
+                    getString(R.string.settings_option_no) to false,
+                ), false),
+                SettingDropdown(R.id.spinner_audio_effects, AUDIO_EFFECTS, hashMapOf(
+                    getString(R.string.settings_option_yes) to true,
+                    getString(R.string.settings_option_no) to false,
+                ), false),
                 SettingDropdown(R.id.spinner_auto_recording_start, AUTO_RECORDING_START, hashMapOf(
                     getString(R.string.settings_option_yes) to true,
                     getString(R.string.settings_option_no) to false,
@@ -339,11 +427,6 @@ class MainActivity : AppCompatActivity() {
                     getString(R.string.settings_option_yes) to true,
                     getString(R.string.settings_option_no) to false,
                 ), false),
-                SettingStringDropdown(R.id.spinner_postprocessing, POSTPROCESSING, listOf(
-                    getString(R.string.settings_option_to_traditional),
-                    getString(R.string.settings_option_to_simplified),
-                    getString(R.string.settings_option_no_conversion)
-                ), getString(R.string.settings_option_to_traditional)),
             )
             val btnApply: Button = findViewById(R.id.btn_settings_apply)
             btnApply.isEnabled = false
@@ -353,9 +436,12 @@ class MainActivity : AppCompatActivity() {
                     for (settingItem in settingItems) {
                         settingItem.apply()
                     }
-                    btnApply.isEnabled = false
+                    Toast.makeText(this@MainActivity, R.string.successfully_set, Toast.LENGTH_SHORT).show()
+                    // Restart the activity so that it is laid out in the newly selected language.
+                    if (languageSetting.languageChanged) {
+                        recreate()
+                    }
                 }
-                Toast.makeText(this@MainActivity, R.string.successfully_set, Toast.LENGTH_SHORT).show()
             }
             settingItems.map { settingItem -> settingItem.setup() }.joinAll()
             setupSettingItemsDone = true

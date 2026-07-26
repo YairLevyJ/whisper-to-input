@@ -57,8 +57,23 @@
     <string name="settings_model">Model</string>
     <string name="settings_model_desc">The model to use for transcription (e.g., whisper-1).</string>
     <string name="settings_model_hint">Enter model name (e.g., whisper-1)</string>
+    <string name="settings_prompt">Prompt</string>
+    <string name="settings_prompt_desc">Optional context or vocabulary hint sent to the transcription API to bias recognition (e.g., names, jargon, or a sample sentence in the target language). May be left empty.</string>
+    <string name="settings_prompt_hint">Enter optional context/vocabulary hint…</string>
     <string name="settings_option_yes">Yes</string>
     <string name="settings_option_no">No</string>
+    <string name="settings_auto_stop_recording">Auto Stop Recording</string>
+    <string name="settings_auto_stop_recording_desc">Whether to automatically finish recording after a few seconds of silence, and cancel it if speech never starts. Disabled by default.</string>
+    <string-array name="settings_auto_stop_recording_array">
+        <item>@string/settings_option_yes</item>
+        <item>@string/settings_option_no</item>
+    </string-array>
+    <string name="settings_audio_effects">Microphone Audio Effects</string>
+    <string name="settings_audio_effects_desc">Whether to apply the device noise suppressor and automatic gain control while recording, when available. Disabled by default, since these can degrade transcription accuracy.</string>
+    <string-array name="settings_audio_effects_array">
+        <item>@string/settings_option_yes</item>
+        <item>@string/settings_option_no</item>
+    </string-array>
     <string name="settings_auto_recording_start">Auto Recording Start</string>
     <string name="settings_auto_recording_start_desc">Whether to automatically start recording upon opening the keyboard.</string>
     <string-array name="settings_auto_recording_start_array">
@@ -77,15 +92,17 @@
         <item>@string/settings_option_yes</item>
         <item>@string/settings_option_no</item>
     </string-array>
-    <string name="settings_postprocessing">Postprocessing</string>
-    <string name="settings_postprocessing_desc">Choose how to handle text postprocessing.</string>
-    <string name="settings_option_to_traditional">Convert to Traditional Chinese</string>
-    <string name="settings_option_to_simplified">Convert to Simplified Chinese</string>
-    <string name="settings_option_no_conversion">No Conversion</string>
-    <string-array name="settings_postprocessing_array">
-        <item>@string/settings_option_to_traditional</item>
-        <item>@string/settings_option_to_simplified</item>
-        <item>@string/settings_option_no_conversion</item>
+
+    <!-- UI Language -->
+    <string name="settings_ui_language">Interface Language</string>
+    <string name="settings_ui_language_desc">The language of the app and keyboard interface. Follows the device language by default.</string>
+    <string name="settings_option_language_system">Device language</string>
+    <string name="settings_option_language_english">English</string>
+    <string name="settings_option_language_hebrew">עברית</string>
+    <string-array name="settings_ui_language_array">
+        <item>@string/settings_option_language_system</item>
+        <item>@string/settings_option_language_english</item>
+        <item>@string/settings_option_language_hebrew</item>
     </string-array>
     <string name="desc_space_bar">Space Bar</string>
 

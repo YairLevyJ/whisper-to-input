@@ -85,6 +85,20 @@
             android:minHeight="100dp"
             android:orientation="vertical" >
 
+            <!-- UI Language -->
+            <TextView
+                android:id="@+id/label_ui_language"
+                style="@style/SettingsLabel"
+                android:text="@string/settings_ui_language" />
+            <TextView
+                android:id="@+id/description_ui_language"
+                style="@style/SettingsDescription"
+                android:text="@string/settings_ui_language_desc" />
+            <Spinner
+                android:id="@+id/spinner_ui_language"
+                style="@style/SettingsSpinner"
+                android:entries="@array/settings_ui_language_array" />
+
             <!-- Speech to Text Backend -->
             <TextView
                 android:id="@+id/label_speech_to_text_backend"
@@ -155,6 +169,48 @@
                 style="@style/SettingsField"
                 android:hint="@string/settings_language_code_hint" />
 
+            <!-- Prompt -->
+            <TextView
+                android:id="@+id/label_prompt"
+                style="@style/SettingsLabel"
+                android:text="@string/settings_prompt" />
+            <TextView
+                android:id="@+id/description_prompt"
+                style="@style/SettingsDescription"
+                android:text="@string/settings_prompt_desc" />
+            <EditText
+                android:id="@+id/field_prompt"
+                style="@style/SettingsField"
+                android:hint="@string/settings_prompt_hint" />
+
+            <!-- Auto Stop Recording -->
+            <TextView
+                android:id="@+id/label_auto_stop_recording"
+                style="@style/SettingsLabel"
+                android:text="@string/settings_auto_stop_recording" />
+            <TextView
+                android:id="@+id/description_auto_stop_recording"
+                style="@style/SettingsDescription"
+                android:text="@string/settings_auto_stop_recording_desc" />
+            <Spinner
+                android:id="@+id/spinner_auto_stop_recording"
+                style="@style/SettingsSpinner"
+                android:entries="@array/settings_auto_stop_recording_array" />
+
+            <!-- Audio Effects -->
+            <TextView
+                android:id="@+id/label_audio_effects"
+                style="@style/SettingsLabel"
+                android:text="@string/settings_audio_effects" />
+            <TextView
+                android:id="@+id/description_audio_effects"
+                style="@style/SettingsDescription"
+                android:text="@string/settings_audio_effects_desc" />
+            <Spinner
+                android:id="@+id/spinner_audio_effects"
+                style="@style/SettingsSpinner"
+                android:entries="@array/settings_audio_effects_array" />
+
             <!-- Auto Recording Start -->
             <TextView
                 android:id="@+id/label_auto_recording_start"
@@ -182,20 +238,6 @@
                 android:id="@+id/spinner_auto_switch_back"
                 style="@style/SettingsSpinner"
                 android:entries="@array/settings_auto_switch_back_array" />
-
-            <!-- Postprocessing -->
-            <TextView
-                android:id="@+id/label_postprocessing"
-                style="@style/SettingsLabel"
-                android:text="@string/settings_postprocessing" />
-            <TextView
-                android:id="@+id/description_postprocessing"
-                style="@style/SettingsDescription"
-                android:text="@string/settings_postprocessing_desc" />
-            <Spinner
-                android:id="@+id/spinner_postprocessing"
-                style="@style/SettingsSpinner"
-                android:entries="@array/settings_postprocessing_array" />
 
             <!-- Add Trailing Space -->
             <TextView

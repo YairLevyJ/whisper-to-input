@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Hebrew translations. This directory is named values-iw rather than values-he because
+    Android resolves Hebrew through the legacy ISO 639-1 code "iw".
+
+    Strings deliberately left untranslated in values/strings.xml: the default endpoint, model
+    and language values (they are URLs and identifiers, not prose) and the backend names
+    (OpenAI API, Whisper ASR Webservice, NVIDIA NIM), which are product names.
+-->
+<resources>
+    <!-- General -->
+    <string name="app_name">Whisper To Input</string>
+    <string name="enter_text">הזנת טקסט</string>
+    <string name="whisper_to_input">Whisper To Input</string>
+    <string name="loading">טוען…</string>
+
+    <!-- Keyboard -->
+    <string name="recording">מקליט…</string>
+    <string name="transcribing">מתמלל…</string>
+    <string name="start_speech_to_text">התחלת המרת דיבור לטקסט.</string>
+    <string name="start_transcribing">התחלת תמלול.</string>
+    <string name="grant_microphone_permission">הענקת הרשאת מיקרופון</string>
+    <string name="mic_permission_required">‏Whisper To Input זקוקה להרשאת מיקרופון כדי לפעול.</string>
+    <string name="notification_permission_required">‏Whisper To Input זקוקה להרשאת התראות כדי לפעול.</string>
+    <string name="microphone">מיקרופון</string>
+    <string name="successfully_set">ההגדרות נשמרו!</string>
+    <string name="backspace_button_hint">מקש מחיקה</string>
+    <string name="btn_previous_ime_hint">מעבר למקלדת הקודמת</string>
+    <string name="generate_logcat">הפקת יומן אירועים אחרון</string>
+    <string name="desc_space_bar">מקש רווח</string>
+
+    <!-- Warning and Error Messages -->
+    <string name="error_endpoint_unset">שגיאה: לא הוגדרה כתובת שרת (endpoint) בהגדרות.</string>
+    <string name="error_apikey_unset">שגיאה: לא הוגדר מפתח API בהגדרות.</string>
+
+    <!-- Settings -->
+    <string name="whisper_to_input_settings_title">הגדרות Whisper To Input</string>
+    <string name="settings_btn_apply">החל</string>
+
+    <string name="settings_speech_to_text_backend">שרת המרת דיבור לטקסט</string>
+    <string name="settings_speech_to_text_backend_desc">בחירה בין ה-API הרשמי של OpenAI (או שירות תואם, כגון Groq), שרת Whisper ASR Webservice, או NVIDIA NIM.</string>
+
+    <string name="settings_endpoint">כתובת השרת</string>
+    <string name="settings_endpoint_desc">כתובת ה-endpoint שאליה נשלחות בקשות התמלול.</string>
+    <string name="settings_endpoint_hint"><![CDATA[לדוגמה: http://<host>:<port>/asr]]></string>
+
+    <string name="settings_language_code">קוד שפה</string>
+    <string name="settings_language_code_desc">קוד השפה שיישלח בבקשה, כלומר שפת הדיבור שיש לתמלל (לדוגמה: he, en). זו אינה שפת הממשק.</string>
+    <string name="settings_language_code_hint">הזן קוד שפה (לדוגמה: he, en)</string>
+
+    <string name="settings_api_key">מפתח API</string>
+    <string name="settings_api_key_desc">מפתח ה-API שישמש בבקשות לשרת.</string>
+    <string name="settings_api_key_hint">הזן מפתח API…</string>
+
+    <string name="settings_model">מודל</string>
+    <string name="settings_model_desc">המודל שישמש לתמלול (לדוגמה: whisper-1).</string>
+    <string name="settings_model_hint">הזן שם מודל (לדוגמה: whisper-1)</string>
+
+    <string name="settings_prompt">הקשר</string>
+    <string name="settings_prompt_desc">רמז הקשר או אוצר מילים אופציונלי שנשלח לשרת כדי להטות את הזיהוי (לדוגמה: שמות, מונחים מקצועיים, או משפט לדוגמה בשפת היעד). אפשר להשאיר ריק.</string>
+    <string name="settings_prompt_hint">הזן רמז הקשר או אוצר מילים…</string>
+
+    <string name="settings_option_yes">כן</string>
+    <string name="settings_option_no">לא</string>
+
+    <string name="settings_auto_stop_recording">עצירת הקלטה אוטומטית</string>
+    <string name="settings_auto_stop_recording_desc">האם לסיים את ההקלטה אוטומטית לאחר מספר שניות של שקט, ולבטל אותה אם לא זוהה דיבור כלל. כבוי כברירת מחדל.</string>
+
+    <string name="settings_audio_effects">אפקטי אודיו של המיקרופון</string>
+    <string name="settings_audio_effects_desc">האם להפעיל את מנגנוני הפחתת הרעש ובקרת ההגבר האוטומטית של המכשיר בזמן ההקלטה, אם הם זמינים. כבוי כברירת מחדל, מכיוון שהם עלולים לפגוע בדיוק התמלול.</string>
+
+    <string name="settings_auto_recording_start">התחלת הקלטה אוטומטית</string>
+    <string name="settings_auto_recording_start_desc">האם להתחיל להקליט אוטומטית עם פתיחת המקלדת.</string>
+
+    <string name="settings_auto_switch_back">חזרה אוטומטית למקלדת הקודמת</string>
+    <string name="settings_auto_switch_back_desc">האם לחזור אוטומטית למקלדת הקודמת בסיום התמלול.</string>
+
+    <string name="settings_add_trailing_space">הוספת רווח בסוף</string>
+    <string name="settings_add_trailing_space_desc">האם להוסיף רווח אחרי הטקסט המתומלל.</string>
+
+    <!-- UI Language -->
+    <string name="settings_ui_language">שפת ממשק</string>
+    <string name="settings_ui_language_desc">שפת הממשק של האפליקציה והמקלדת. כברירת מחדל נגזרת משפת המכשיר.</string>
+    <string name="settings_option_language_system">שפת המכשיר</string>
+    <string name="settings_option_language_english">אנגלית</string>
+    <string name="settings_option_language_hebrew">עברית</string>
+</resources>

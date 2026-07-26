@@ -21,7 +21,9 @@ package com.example.whispertoinput
 
 import android.inputmethodservice.InputMethodService
 import android.os.Build
+import android.view.LayoutInflater
 import android.view.View
+import android.content.Context
 import android.content.Intent
 import android.os.IBinder
 import android.text.TextUtils
@@ -31,8 +33,6 @@ import android.widget.Toast
 import androidx.datastore.preferences.core.Preferences
 import com.example.whispertoinput.keyboard.WhisperKeyboard
 import com.example.whispertoinput.recorder.RecorderManager
-import com.github.liuyueyi.quick.transfer.ChineseUtils
-import com.github.liuyueyi.quick.transfer.constants.TransType
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -41,10 +41,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 
-private const val RECORDED_AUDIO_FILENAME_M4A = "recorded.m4a"
-private const val RECORDED_AUDIO_FILENAME_OGG = "recorded.ogg"
-private const val AUDIO_MEDIA_TYPE_M4A = "audio/mp4"
-private const val AUDIO_MEDIA_TYPE_OGG = "audio/ogg"
+private const val RECORDED_AUDIO_FILENAME_WAV = "recorded.wav"
+private const val AUDIO_MEDIA_TYPE_WAV = "audio/wav"
 private const val IME_SWITCH_OPTION_AVAILABILITY_API_LEVEL = 28
 
 class WhisperInputService : InputMethodService() {
@@ -52,9 +50,18 @@ class WhisperInputService : InputMethodService() {
     private val whisperTranscriber: WhisperTranscriber = WhisperTranscriber()
     private var recorderManager: RecorderManager? = null
     private var recordedAudioFilename: String = ""
-    private var audioMediaType: String = AUDIO_MEDIA_TYPE_M4A
-    private var useOggFormat: Boolean = false
+    private var useVoiceActivityDetection: Boolean = false
+    private var useAudioEffects: Boolean = false
     private var isFirstTime: Boolean = true
+
+    // The UI language the current input view was inflated with, so that a language change made in
+    // the settings can be picked up without waiting for the service itself to be recreated.
+    private var inputViewLanguage: String? = null
+
+    // Applies the selected UI language to everything this service resolves, keyboard included.
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(LocaleHelper.applyToContext(newBase))
+    }
 
     private fun transcriptionCallback(text: String?) {
         if (!text.isNullOrEmpty()) {
@@ -77,32 +84,28 @@ class WhisperInputService : InputMethodService() {
         whisperKeyboard.reset()
     }
 
-    private suspend fun updateAudioFormat() {
-        val backend = dataStore.data.map { preferences: Preferences ->
-            preferences[SPEECH_TO_TEXT_BACKEND] ?: getString(R.string.settings_option_openai_api)
+    private suspend fun updateRecordingSettings() {
+        useVoiceActivityDetection = dataStore.data.map { preferences: Preferences ->
+            preferences[AUTO_STOP_RECORDING] ?: false
         }.first()
-        
-        useOggFormat = backend == getString(R.string.settings_option_nvidia_nim)
-        if (useOggFormat) {
-            recordedAudioFilename = "${externalCacheDir?.absolutePath}/${RECORDED_AUDIO_FILENAME_OGG}"
-            audioMediaType = AUDIO_MEDIA_TYPE_OGG
-        } else {
-            recordedAudioFilename = "${externalCacheDir?.absolutePath}/${RECORDED_AUDIO_FILENAME_M4A}"
-            audioMediaType = AUDIO_MEDIA_TYPE_M4A
-        }
+        useAudioEffects = dataStore.data.map { preferences: Preferences ->
+            preferences[AUDIO_EFFECTS] ?: false
+        }.first()
     }
 
     override fun onCreateInputView(): View {
         // Initialize members with regard to this context
         recorderManager = RecorderManager(this)
 
-        // Preload conversion table
-        ChineseUtils.preLoad(true, TransType.SIMPLE_TO_TAIWAN)
-        ChineseUtils.preLoad(true, TransType.TAIWAN_TO_SIMPLE)
+        // All backends receive the same 16 kHz mono PCM WAV file, so the path is fixed.
+        // It must be assigned before the keyboard is set up, since setup() queries shouldShowRetry().
+        // The internal cache directory is used rather than the external one so that the recording
+        // is never readable by other apps.
+        recordedAudioFilename = "${cacheDir.absolutePath}/${RECORDED_AUDIO_FILENAME_WAV}"
 
-        // Initialize audio format based on backend setting
+        // Initialize recording behavior based on settings
         CoroutineScope(Dispatchers.Main).launch {
-            updateAudioFormat()
+            updateRecordingSettings()
         }
 
         // Should offer ime switch?
@@ -120,9 +123,21 @@ class WhisperInputService : InputMethodService() {
         recorderManager!!.setOnUpdateMicrophoneAmplitude { amplitude ->
             onUpdateMicrophoneAmplitude(amplitude)
         }
+        // Voice activity detection drives the same keyboard transitions as the mic/cancel buttons,
+        // so the FSM stays the single source of truth for the keyboard state.
+        recorderManager!!.setOnAutoStopRecording {
+            whisperKeyboard.tryStartTranscribing("")
+        }
+        recorderManager!!.setOnAutoCancelRecording {
+            whisperKeyboard.tryCancelRecording()
+        }
 
-        // Returns the keyboard after setting it up and inflating its layout
-        return whisperKeyboard.setup(layoutInflater,
+        // Returns the keyboard after setting it up and inflating its layout.
+        // The inflater is rebuilt from a locale-aware context on every call, so that rebuilding
+        // the input view is enough to switch the keyboard's language.
+        inputViewLanguage = LocaleHelper.getLanguage(this)
+        val inflater = LayoutInflater.from(LocaleHelper.applyToContext(this))
+        return whisperKeyboard.setup(inflater,
             shouldOfferImeSwitch,
             { onStartRecording() },
             { onCancelRecording() },
@@ -146,7 +161,11 @@ class WhisperInputService : InputMethodService() {
             return
         }
 
-        recorderManager!!.start(this, recordedAudioFilename, useOggFormat)
+        recorderManager!!.start(
+            recordedAudioFilename,
+            useVoiceActivityDetection,
+            useAudioEffects
+        )
     }
 
     // when mic amplitude is updated, notify the keyboard
@@ -163,7 +182,7 @@ class WhisperInputService : InputMethodService() {
         recorderManager!!.stop()
         whisperTranscriber.startAsync(this,
             recordedAudioFilename,
-            audioMediaType,
+            AUDIO_MEDIA_TYPE_WAV,
             attachToEnd,
             { transcriptionCallback(it) },
             { transcriptionExceptionCallback(it) })
@@ -229,12 +248,18 @@ class WhisperInputService : InputMethodService() {
         whisperKeyboard.reset()
         recorderManager!!.stop()
 
+        // Rebuild the keyboard if the UI language was changed in the settings while this service
+        // was already running.
+        if (inputViewLanguage != null && inputViewLanguage != LocaleHelper.getLanguage(this)) {
+            setInputView(onCreateInputView())
+        }
+
         // If this is the first time calling onWindowShown, it means this IME is just being switched to.
         // Automatically starts recording after switching to Whisper Input. (if settings enabled)
         // Dispatch a coroutine to do this task.
         CoroutineScope(Dispatchers.Main).launch {
-            // Update audio format based on current backend setting
-            updateAudioFormat()
+            // Pick up any settings changed since the keyboard was last shown
+            updateRecordingSettings()
             if (!isFirstTime) return@launch
             isFirstTime = false
             val isAutoStartRecording = dataStore.data.map { preferences: Preferences ->

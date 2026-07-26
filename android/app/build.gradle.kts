@@ -8,13 +8,32 @@ android {
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.example.whispertoinput"
+        // Private fork: distinct from the upstream application id so both can be installed
+        // side by side and upstream updates never overwrite this build.
+        applicationId = "com.yair.whispergroqinput"
         minSdk = 24
         targetSdk = 34
-        versionCode = 4
-        versionName = "0.4"
+        versionCode = 5
+        versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // Only the languages this fork actually ships translations for.
+        resourceConfigurations += listOf("en", "iw")
+    }
+
+    signingConfigs {
+        create("release") {
+            // Populated from the release workflow's secrets. When the variables are absent
+            // (any local build), the release build type is simply left unsigned.
+            val keystoreFile = System.getenv("RELEASE_KEYSTORE_FILE")
+            if (!keystoreFile.isNullOrEmpty()) {
+                storeFile = file(keystoreFile)
+                storePassword = System.getenv("RELEASE_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("RELEASE_KEY_ALIAS")
+                keyPassword = System.getenv("RELEASE_KEY_PASSWORD")
+            }
+        }
     }
 
     buildTypes {
@@ -24,6 +43,9 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            if (!System.getenv("RELEASE_KEYSTORE_FILE").isNullOrEmpty()) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
     compileOptions {
@@ -45,5 +67,4 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
-    implementation("com.github.liuyueyi:quick-transfer-core:0.2.13")
 }
