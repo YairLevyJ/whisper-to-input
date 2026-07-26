@@ -1,12 +1,16 @@
-name: Build debug APK
+name: Build
 
-# The debug APK is built in CI because it is the only place in this fork's workflow
-# with access to the Android SDK. The resulting APK is attached to the run as an
-# artifact, so it can be downloaded and installed without a local Android toolchain.
+# Continuous check that the app still compiles, plus a throwaway APK for testing a branch.
+#
+# What this produces is a *debug* build, which is not the same artifact as a release:
+# it is debuggable, and it is signed with a throwaway key the runner generates per job,
+# so APKs from two different runs cannot be installed over one another.
+# Use the Release workflow for anything meant to stay installed.
 
 on:
   push:
     branches: ["**"]
+  pull_request:
   workflow_dispatch:
 
 jobs:
@@ -31,12 +35,6 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
-      - name: Show toolchain
-        run: |
-          echo "ANDROID_HOME=$ANDROID_HOME"
-          ls "$ANDROID_HOME/platforms" "$ANDROID_HOME/build-tools" || true
-          java -version
-
       - name: Build debug APK
         working-directory: android
         # --console=plain keeps the output non-interactive and line-oriented, so a stall is
@@ -45,6 +43,6 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: whisper-groq-input-debug-apk
+          name: test-build-debug-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error

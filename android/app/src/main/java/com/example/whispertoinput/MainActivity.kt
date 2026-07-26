@@ -62,7 +62,6 @@ val MODEL = stringPreferencesKey("model")
 val AUTO_RECORDING_START = booleanPreferencesKey("is-auto-recording-start")
 val AUTO_SWITCH_BACK = booleanPreferencesKey("auto-switch-back")
 val ADD_TRAILING_SPACE = booleanPreferencesKey("add-trailing-space")
-val POSTPROCESSING = stringPreferencesKey("postprocessing")
 val PROMPT = stringPreferencesKey("prompt")
 val AUTO_STOP_RECORDING = booleanPreferencesKey("auto-stop-recording")
 val AUDIO_EFFECTS = booleanPreferencesKey("audio-effects")
@@ -74,10 +73,6 @@ const val BACKEND_OPENAI_API = "openai-api"
 const val BACKEND_WHISPER_ASR_WEBSERVICE = "whisper-asr-webservice"
 const val BACKEND_NVIDIA_NIM = "nvidia-nim"
 
-const val POSTPROCESSING_NO_CONVERSION = "no-conversion"
-const val POSTPROCESSING_TO_TRADITIONAL = "to-traditional"
-const val POSTPROCESSING_TO_SIMPLIFIED = "to-simplified"
-
 // Upstream persisted the English display label instead of a stable value. Map those onto the
 // current values so that an existing configuration survives the upgrade instead of silently
 // resetting to the defaults.
@@ -85,9 +80,6 @@ private val LEGACY_SETTING_VALUES = mapOf(
     "OpenAI API" to BACKEND_OPENAI_API,
     "Whisper ASR Webservice" to BACKEND_WHISPER_ASR_WEBSERVICE,
     "NVIDIA NIM" to BACKEND_NVIDIA_NIM,
-    "No Conversion" to POSTPROCESSING_NO_CONVERSION,
-    "Convert to Traditional Chinese" to POSTPROCESSING_TO_TRADITIONAL,
-    "Convert to Simplified Chinese" to POSTPROCESSING_TO_SIMPLIFIED,
 )
 
 fun normalizeSettingValue(value: String): String = LEGACY_SETTING_VALUES[value] ?: value
@@ -435,11 +427,6 @@ class MainActivity : AppCompatActivity() {
                     getString(R.string.settings_option_yes) to true,
                     getString(R.string.settings_option_no) to false,
                 ), false),
-                SettingStringDropdown(R.id.spinner_postprocessing, POSTPROCESSING, listOf(
-                    POSTPROCESSING_NO_CONVERSION,
-                    POSTPROCESSING_TO_TRADITIONAL,
-                    POSTPROCESSING_TO_SIMPLIFIED
-                ), POSTPROCESSING_NO_CONVERSION),
             )
             val btnApply: Button = findViewById(R.id.btn_settings_apply)
             btnApply.isEnabled = false

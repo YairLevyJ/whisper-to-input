@@ -34,7 +34,6 @@ import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.asRequestBody
 import java.io.File
 import java.net.URLEncoder
-import com.github.liuyueyi.quick.transfer.ChineseUtils
 
 class WhisperTranscriber {
     private data class Config(
@@ -43,7 +42,6 @@ class WhisperTranscriber {
         val speechToTextBackend: String,
         val apiKey: String,
         val model: String,
-        val postprocessing: String,
         val addTrailingSpace: Boolean,
         val prompt: String
     )
@@ -68,12 +66,11 @@ class WhisperTranscriber {
                     normalizeSettingValue(preferences[SPEECH_TO_TEXT_BACKEND] ?: BACKEND_OPENAI_API),
                     preferences[API_KEY] ?: "",
                     preferences[MODEL] ?: "",
-                    normalizeSettingValue(preferences[POSTPROCESSING] ?: POSTPROCESSING_NO_CONVERSION),
                     preferences[ADD_TRAILING_SPACE] ?: false,
                     preferences[PROMPT] ?: ""
                 )
             }.first()
-            val (endpoint, languageCode, speechToTextBackend, apiKey, model, postprocessing, addTrailingSpace) = config
+            val (endpoint, languageCode, speechToTextBackend, apiKey, model, addTrailingSpace) = config
             val prompt = config.prompt
 
             // Foolproof message
@@ -110,17 +107,11 @@ class WhisperTranscriber {
                 rawText = rawText.substring(1, rawText.length - 1).trim()
             }
             
-            val processedText = when (postprocessing) {
-                POSTPROCESSING_TO_SIMPLIFIED -> ChineseUtils.tw2s(rawText)
-                POSTPROCESSING_TO_TRADITIONAL -> ChineseUtils.s2tw(rawText)
-                else -> rawText // No conversion
-            }
-
             if (attachToEnd == "") {
-                return processedText + if (addTrailingSpace) " " else ""
+                return rawText + if (addTrailingSpace) " " else ""
             } else {
                 // Only used for space key and enter key.
-                return processedText + attachToEnd
+                return rawText + attachToEnd
             }
         }
 

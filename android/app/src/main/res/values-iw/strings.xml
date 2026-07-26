@@ -78,12 +78,6 @@
     <string name="settings_add_trailing_space">הוספת רווח בסוף</string>
     <string name="settings_add_trailing_space_desc">האם להוסיף רווח אחרי הטקסט המתומלל.</string>
 
-    <string name="settings_postprocessing">עיבוד לאחר תמלול</string>
-    <string name="settings_postprocessing_desc">המרה בין כתיב סיני מסורתי למפושט. לא רלוונטי לעברית.</string>
-    <string name="settings_option_to_traditional">המרה לסינית מסורתית</string>
-    <string name="settings_option_to_simplified">המרה לסינית מפושטת</string>
-    <string name="settings_option_no_conversion">ללא המרה</string>
-
     <!-- UI Language -->
     <string name="settings_ui_language">שפת ממשק</string>
     <string name="settings_ui_language_desc">שפת הממשק של האפליקציה והמקלדת. כברירת מחדל נגזרת משפת המכשיר.</string>
