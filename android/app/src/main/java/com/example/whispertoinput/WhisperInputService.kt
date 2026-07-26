@@ -21,7 +21,9 @@ package com.example.whispertoinput
 
 import android.inputmethodservice.InputMethodService
 import android.os.Build
+import android.view.LayoutInflater
 import android.view.View
+import android.content.Context
 import android.content.Intent
 import android.os.IBinder
 import android.text.TextUtils
@@ -53,6 +55,15 @@ class WhisperInputService : InputMethodService() {
     private var useVoiceActivityDetection: Boolean = false
     private var useAudioEffects: Boolean = false
     private var isFirstTime: Boolean = true
+
+    // The UI language the current input view was inflated with, so that a language change made in
+    // the settings can be picked up without waiting for the service itself to be recreated.
+    private var inputViewLanguage: String? = null
+
+    // Applies the selected UI language to everything this service resolves, keyboard included.
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(LocaleHelper.applyToContext(newBase))
+    }
 
     private fun transcriptionCallback(text: String?) {
         if (!text.isNullOrEmpty()) {
@@ -90,7 +101,9 @@ class WhisperInputService : InputMethodService() {
 
         // All backends receive the same 16 kHz mono PCM WAV file, so the path is fixed.
         // It must be assigned before the keyboard is set up, since setup() queries shouldShowRetry().
-        recordedAudioFilename = "${externalCacheDir?.absolutePath}/${RECORDED_AUDIO_FILENAME_WAV}"
+        // The internal cache directory is used rather than the external one so that the recording
+        // is never readable by other apps.
+        recordedAudioFilename = "${cacheDir.absolutePath}/${RECORDED_AUDIO_FILENAME_WAV}"
 
         // Preload conversion table
         ChineseUtils.preLoad(true, TransType.SIMPLE_TO_TAIWAN)
@@ -125,8 +138,12 @@ class WhisperInputService : InputMethodService() {
             whisperKeyboard.tryCancelRecording()
         }
 
-        // Returns the keyboard after setting it up and inflating its layout
-        return whisperKeyboard.setup(layoutInflater,
+        // Returns the keyboard after setting it up and inflating its layout.
+        // The inflater is rebuilt from a locale-aware context on every call, so that rebuilding
+        // the input view is enough to switch the keyboard's language.
+        inputViewLanguage = LocaleHelper.getLanguage(this)
+        val inflater = LayoutInflater.from(LocaleHelper.applyToContext(this))
+        return whisperKeyboard.setup(inflater,
             shouldOfferImeSwitch,
             { onStartRecording() },
             { onCancelRecording() },
@@ -236,6 +253,12 @@ class WhisperInputService : InputMethodService() {
         whisperTranscriber.stop()
         whisperKeyboard.reset()
         recorderManager!!.stop()
+
+        // Rebuild the keyboard if the UI language was changed in the settings while this service
+        // was already running.
+        if (inputViewLanguage != null && inputViewLanguage != LocaleHelper.getLanguage(this)) {
+            setInputView(onCreateInputView())
+        }
 
         // If this is the first time calling onWindowShown, it means this IME is just being switched to.
         // Automatically starts recording after switching to Whisper Input. (if settings enabled)

@@ -65,10 +65,10 @@ class WhisperTranscriber {
                 Config(
                     preferences[ENDPOINT] ?: "",
                     preferences[LANGUAGE_CODE] ?: "",
-                    preferences[SPEECH_TO_TEXT_BACKEND] ?: context.getString(R.string.settings_option_openai_api),
+                    normalizeSettingValue(preferences[SPEECH_TO_TEXT_BACKEND] ?: BACKEND_OPENAI_API),
                     preferences[API_KEY] ?: "",
                     preferences[MODEL] ?: "",
-                    preferences[POSTPROCESSING] ?: context.getString(R.string.settings_option_no_conversion),
+                    normalizeSettingValue(preferences[POSTPROCESSING] ?: POSTPROCESSING_NO_CONVERSION),
                     preferences[ADD_TRAILING_SPACE] ?: false,
                     preferences[PROMPT] ?: ""
                 )
@@ -105,14 +105,14 @@ class WhisperTranscriber {
             
             // For NVIDIA NIM, remove quotes if they wrap the text
             // Not sure if this is a bug or a feature...
-            if (speechToTextBackend == context.getString(R.string.settings_option_nvidia_nim) && 
+            if (speechToTextBackend == BACKEND_NVIDIA_NIM && 
                 rawText.startsWith("\"") && rawText.endsWith("\"")) {
                 rawText = rawText.substring(1, rawText.length - 1).trim()
             }
             
             val processedText = when (postprocessing) {
-                context.getString(R.string.settings_option_to_simplified) -> ChineseUtils.tw2s(rawText)
-                context.getString(R.string.settings_option_to_traditional) -> ChineseUtils.s2tw(rawText)
+                POSTPROCESSING_TO_SIMPLIFIED -> ChineseUtils.tw2s(rawText)
+                POSTPROCESSING_TO_TRADITIONAL -> ChineseUtils.s2tw(rawText)
                 else -> rawText // No conversion
             }
 
@@ -211,33 +211,33 @@ class WhisperTranscriber {
             val formDataFilename = "audio.wav"
 
             // Add file to payload
-            if (speechToTextBackend == context.getString(R.string.settings_option_openai_api) || 
-                speechToTextBackend == context.getString(R.string.settings_option_nvidia_nim)) {
+            if (speechToTextBackend == BACKEND_OPENAI_API || 
+                speechToTextBackend == BACKEND_NVIDIA_NIM) {
                 addFormDataPart("file", formDataFilename, fileBody)
-            } else if (speechToTextBackend == context.getString(R.string.settings_option_whisper_asr_webservice)) {
+            } else if (speechToTextBackend == BACKEND_WHISPER_ASR_WEBSERVICE) {
                 addFormDataPart("audio_file", formDataFilename, fileBody)
             }
             // Add backend-specific parameters to payload
-            if (speechToTextBackend == context.getString(R.string.settings_option_openai_api)) {
+            if (speechToTextBackend == BACKEND_OPENAI_API) {
                 addFormDataPart("model", model)
                 addFormDataPart("response_format", "text")
             }
-            if (speechToTextBackend == context.getString(R.string.settings_option_nvidia_nim)) {
+            if (speechToTextBackend == BACKEND_NVIDIA_NIM) {
                 addFormDataPart("language", languageCode)
                 addFormDataPart("response_format", "text")
             }
             // Optional context/vocabulary hint. Both OpenAI-compatible endpoints accept it;
             // Whisper ASR Webservice takes it as a query parameter instead (added to the URL below).
             if (prompt.isNotBlank() &&
-                (speechToTextBackend == context.getString(R.string.settings_option_openai_api) ||
-                    speechToTextBackend == context.getString(R.string.settings_option_nvidia_nim))
+                (speechToTextBackend == BACKEND_OPENAI_API ||
+                    speechToTextBackend == BACKEND_NVIDIA_NIM)
             ) {
                 addFormDataPart("prompt", prompt)
             }
         }.build()
 
         val requestHeaders: Headers = Headers.Builder().apply {
-            if (speechToTextBackend == context.getString(R.string.settings_option_openai_api)) {
+            if (speechToTextBackend == BACKEND_OPENAI_API) {
                 // Foolproof message
                 if (apiKey == "") {
                     throw Exception(context.getString(R.string.error_apikey_unset))
@@ -249,12 +249,12 @@ class WhisperTranscriber {
 
         // Build URL with endpoint-specific parameters
         val url = when (speechToTextBackend) {
-            context.getString(R.string.settings_option_openai_api),
-            context.getString(R.string.settings_option_whisper_asr_webservice) -> {
+            BACKEND_OPENAI_API,
+            BACKEND_WHISPER_ASR_WEBSERVICE -> {
                 val baseUrl =
                     "$endpoint?encode=true&task=transcribe&language=$languageCode&word_timestamps=false&output=txt"
                 if (prompt.isNotBlank() &&
-                    speechToTextBackend == context.getString(R.string.settings_option_whisper_asr_webservice)
+                    speechToTextBackend == BACKEND_WHISPER_ASR_WEBSERVICE
                 ) {
                     "$baseUrl&initial_prompt=${URLEncoder.encode(prompt, "UTF-8")}"
                 } else {

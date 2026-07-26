@@ -85,6 +85,20 @@
             android:minHeight="100dp"
             android:orientation="vertical" >
 
+            <!-- UI Language -->
+            <TextView
+                android:id="@+id/label_ui_language"
+                style="@style/SettingsLabel"
+                android:text="@string/settings_ui_language" />
+            <TextView
+                android:id="@+id/description_ui_language"
+                style="@style/SettingsDescription"
+                android:text="@string/settings_ui_language_desc" />
+            <Spinner
+                android:id="@+id/spinner_ui_language"
+                style="@style/SettingsSpinner"
+                android:entries="@array/settings_ui_language_array" />
+
             <!-- Speech to Text Backend -->
             <TextView
                 android:id="@+id/label_speech_to_text_backend"
