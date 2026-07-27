@@ -13,7 +13,11 @@ name: Release
 #     this workflow's OIDC identity. It is what proves the APK really was produced by
 #     this workflow, from this repository, at a specific commit. Anyone can check it:
 #
-#         gh attestation verify app-release.apk --repo <owner>/<repo>
+#         gh attestation verify <asset-name> --repo <owner>/<repo>
+#
+# The published asset is always named <app-name>-v<version>.apk, where <app-name> is read
+# from the app_name string resource rather than duplicated here, so it never drifts out of
+# sync with what the app actually displays on the device.
 #
 # Setting up the signing secrets is documented in docs/RELEASING.md.
 
@@ -39,6 +43,20 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+
+      - name: Determine release asset name
+        id: asset
+        run: |
+          APP_NAME=$(grep -oP '(?<=<string name="app_name">)[^<]+' android/app/src/main/res/values/strings.xml)
+          if [ -z "$APP_NAME" ]; then
+            echo "::error::Could not read app_name from res/values/strings.xml"
+            exit 1
+          fi
+          VERSION="${{ inputs.tag }}"
+          VERSION="${VERSION#v}"
+          ASSET_NAME="${APP_NAME}-v${VERSION}.apk"
+          echo "Asset name: $ASSET_NAME"
+          echo "name=$ASSET_NAME" >> "$GITHUB_OUTPUT"
 
       - uses: actions/setup-java@v4
         with:
@@ -71,38 +89,45 @@ jobs:
           RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
         run: ./gradlew assembleRelease --console=plain --no-daemon --stacktrace
 
+      - name: Rename APK to release asset name
+        run: |
+          mkdir -p android/app/build/outputs/apk/release/dist
+          cp android/app/build/outputs/apk/release/app-release.apk \
+            "android/app/build/outputs/apk/release/dist/${{ steps.asset.outputs.name }}"
+
       # Guards against silently publishing an unsigned APK, which would not install at all.
       - name: Verify the APK is signed
         run: |
           APKSIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | tail -n 1)
           "$APKSIGNER" verify --verbose --print-certs \
-            android/app/build/outputs/apk/release/app-release.apk
+            "android/app/build/outputs/apk/release/dist/${{ steps.asset.outputs.name }}"
 
       - uses: actions/attest-build-provenance@v2
         with:
-          subject-path: android/app/build/outputs/apk/release/app-release.apk
+          subject-path: android/app/build/outputs/apk/release/dist/${{ steps.asset.outputs.name }}
 
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ inputs.tag }}
           PRERELEASE: ${{ inputs.prerelease }}
+          ASSET_NAME: ${{ steps.asset.outputs.name }}
         run: |
-          NOTES=$(cat <<'EOF'
+          NOTES=$(cat <<EOF
           Speech-to-text keyboard, built from this repository by the Release workflow.
 
           ### Verifying this APK really came from this repository
 
           The APK carries a build provenance attestation issued by GitHub. To check it:
 
-              gh attestation verify app-release.apk --repo ${{ github.repository }}
+              gh attestation verify $ASSET_NAME --repo ${{ github.repository }}
 
           That confirms the file was produced by this repository's Release workflow at
           the commit this release was built from, and has not been modified since.
 
           ### Installing
 
-              adb install -r app-release.apk
+              adb install -r $ASSET_NAME
 
           Or copy the APK to the device and open it. Enable the keyboard under
           Settings -> System -> Languages & input -> On-screen keyboard.
@@ -111,7 +136,7 @@ jobs:
           FLAGS=""
           if [ "$PRERELEASE" = "true" ]; then FLAGS="--prerelease"; fi
           gh release create "$TAG" \
-            android/app/build/outputs/apk/release/app-release.apk \
+            "android/app/build/outputs/apk/release/dist/$ASSET_NAME" \
             --title "$TAG" \
             --notes "$NOTES" \
             --target "$GITHUB_SHA" \

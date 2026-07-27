@@ -1,8 +1,8 @@
 <resources>
     <!-- General -->
-    <string name="app_name">Whisper To Input</string>
+    <string name="app_name">QuickDictate</string>
     <string name="enter_text">Enter Text</string>
-    <string name="whisper_to_input">Whisper To Input</string>
+    <string name="whisper_to_input">QuickDictate</string>
     <string name="empty_string" />
     <string name="loading">Loading…</string>
 
@@ -25,7 +25,7 @@
     <string name="error_apikey_unset">Error: OpenAI API Key is not set in settings.</string>
 
     <!-- Settings -->
-    <string name="whisper_to_input_settings_title">Whisper To Input Settings</string>
+    <string name="whisper_to_input_settings_title">QuickDictate Settings</string>
     <string name="settings_btn_apply">Apply</string>
     <string name="settings_speech_to_text_backend">Speech to Text Backend</string>
     <string name="settings_speech_to_text_backend_desc">Use the official OpenAI API, Whisper ASR Webservice, or NVIDIA NIM backend.</string>

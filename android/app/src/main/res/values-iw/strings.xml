@@ -9,9 +9,9 @@
 -->
 <resources>
     <!-- General -->
-    <string name="app_name">Whisper To Input</string>
+    <string name="app_name">QuickDictate</string>
     <string name="enter_text">הזנת טקסט</string>
-    <string name="whisper_to_input">Whisper To Input</string>
+    <string name="whisper_to_input">QuickDictate</string>
     <string name="loading">טוען…</string>
 
     <!-- Keyboard -->
@@ -34,7 +34,7 @@
     <string name="error_apikey_unset">שגיאה: לא הוגדר מפתח API בהגדרות.</string>
 
     <!-- Settings -->
-    <string name="whisper_to_input_settings_title">הגדרות Whisper To Input</string>
+    <string name="whisper_to_input_settings_title">הגדרות QuickDictate</string>
     <string name="settings_btn_apply">החל</string>
 
     <string name="settings_speech_to_text_backend">שרת המרת דיבור לטקסט</string>
