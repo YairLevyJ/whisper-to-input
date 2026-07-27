@@ -1,6 +1,6 @@
 name: Build
 
-# Continuous check that the app still compiles, plus a throwaway APK for testing a branch.
+# Manually-triggered check that the app still compiles, plus a throwaway APK for testing a branch.
 #
 # What this produces is a *debug* build, which is not the same artifact as a release:
 # it is debuggable, and it is signed with a throwaway key the runner generates per job,
@@ -8,9 +8,6 @@ name: Build
 # Use the Release workflow for anything meant to stay installed.
 
 on:
-  push:
-    branches: ["**"]
-  pull_request:
   workflow_dispatch:
 
 jobs:
