@@ -1,112 +1,241 @@
-# Whisper To Input
+# QuickDictate
 
-Whisper To Input, also known by its Mandarin name 輕聲細語輸入法, is an Android keyboard that performs speech-to-text (STT/ASR) with OpenAI Whisper and input the recognized text; Supports English, Chinese, Japanese, etc. and even mixed languages and Taiwanese.
+> ### Modified version notice
+>
+> **This is a modified version of [whisper-to-input](https://github.com/j3soon/whisper-to-input) by Yan-Bin Diau, Johnson Sun and Ying-Chou Sun.**
+>
+> Modified by [@YairLevyJ](https://github.com/YairLevyJ) in July 2026. The changes are
+> summarised in [What is different from upstream](#what-is-different-from-upstream) and are
+> visible in full in this repository's commit history.
+>
+> This fork is **not** affiliated with, endorsed by, or supported by the original authors.
+> Please do not report problems with this fork to the upstream project — open an issue
+> [here](https://github.com/YairLevyJ/whisper-to-input/issues) instead.
+>
+> Like the original, this fork is licensed under the **GPLv3**. See [License and credits](#license-and-credits).
 
-The STT/ASR backend service can be either [OpenAI API](https://platform.openai.com/docs/guides/speech-to-text), [Whisper ASR Webservice](https://github.com/ahmetoner/whisper-asr-webservice), or [NVIDIA NIM](https://build.nvidia.com/openai/whisper-large-v3) (based on [NVIDIA Riva](https://docs.nvidia.com/deeplearning/riva/user-guide/docs/index.html)).
+QuickDictate is an Android keyboard that transcribes speech to text and types the result into
+whatever field you are editing. Recording happens on the device; transcription happens on a
+speech-to-text service that you point it at.
+
+It was forked to improve transcription accuracy for Hebrew, but nothing in it is
+Hebrew-specific — the audio changes help any language, and the interface ships in both English
+and Hebrew.
+
+Supported backends: any **OpenAI-compatible** transcription endpoint (the official
+[OpenAI API](https://platform.openai.com/docs/guides/speech-to-text),
+[Groq](https://console.groq.com/docs/speech-to-text), or similar),
+[Whisper ASR Webservice](https://github.com/ahmetoner/whisper-asr-webservice), or
+[NVIDIA NIM](https://build.nvidia.com/openai/whisper-large-v3).
+
+Requires Android 7.0 (API 24) or newer.
+
+## What is different from upstream
+
+### Audio is no longer compressed before it is sent
+
+This is the change that motivated the fork, and the one that matters most.
+
+Upstream recorded through `MediaRecorder`, which encoded to **AMR-NB** in an MP4 container for
+the OpenAI-compatible backends. AMR-NB is an 8 kHz narrowband codec running at a few kbit/s,
+designed in the 1990s so that speech would survive a weak cellular link for a *human* listener
+who fills in the gaps from context. It discards essentially everything above ~3.4 kHz — which is
+exactly where the consonants that distinguish similar words live.
+
+A speech recognition model does not fill in those gaps the way a person does; what it never
+received, it guesses at. QuickDictate captures raw PCM through `AudioRecord` (**16 kHz, mono,
+16-bit**, `VOICE_RECOGNITION` source) and streams it straight into a WAV file, uploaded as
+`audio/wav`. 16 kHz mono is what Whisper-family models consume internally, so there is no longer
+a lossy encode on the phone followed by a decode on the server.
+
+All backends now receive the same WAV payload, replacing upstream's per-backend m4a/ogg split.
+
+### Interface language
+
+An **Interface Language** setting offers the device language (default), English, or Hebrew, with
+a full Hebrew translation. The layout mirrors right-to-left when Hebrew is selected.
+
+### Other changes
+
+- **Prompt setting** — optional free-text context or vocabulary hint, sent as the standard
+  `prompt` field to OpenAI-compatible endpoints (and `initial_prompt` to Whisper ASR Webservice).
+  Useful for biasing recognition toward names, jargon, or a particular language.
+- **Auto stop recording** — a voice-activity-detection state machine that finishes the recording
+  after a few seconds of silence, and cancels it if speech never starts. Upstream shipped the
+  tuning constants for this but never wired it up. Off by default.
+- **Microphone audio effects** — optionally enables the device noise suppressor and automatic
+  gain control. Off by default: the `VOICE_RECOGNITION` audio source deliberately leaves audio
+  unprocessed because that is what recognition models want, and both effects can *reduce*
+  accuracy.
+- **Chinese postprocessing removed** — upstream converted transcripts between Traditional and
+  Simplified Chinese, defaulting to Traditional, which silently rewrote output for everyone else.
+  The feature and its third-party dependency are gone. Chinese *transcription* is unaffected —
+  that comes from the model, not from this app.
+- **Storage hardening** — recordings moved from the external cache directory to the internal one
+  (on Android 9 and below, external storage is readable by any app holding
+  `READ_EXTERNAL_STORAGE`), the unused `WRITE_EXTERNAL_STORAGE` permission was dropped, and
+  `allowBackup` is now `false` so the API key is no longer swept into cloud backups.
+- **Settings are stored by stable value, not display label** — upstream persisted the English
+  text shown in each dropdown and compared against it at runtime, which would have broken backend
+  selection the moment the interface was translated. Existing settings are migrated automatically.
+- **Distinct application ID** (`com.yair.whispergroqinput`) so this fork installs alongside the
+  original rather than colliding with it.
+- **Releases are proper release builds** — signed with a stable key and not debuggable, with
+  build provenance attestation (see [Verifying a download](#verifying-a-download)). Upstream
+  ships debug builds.
 
 ## Installation
 
-1. Download the APK file from [the latest release](https://github.com/j3soon/whisper-to-input/releases/latest) to your phone.
+1. Download the `.apk` from [the latest release](https://github.com/YairLevyJ/whisper-to-input/releases/latest).
 
-2. Locate the APK file in your phone and click it. Click "Install" to install the app.
+2. Open the file on your phone and tap `Install`.
 
    <img src='docs/images/01-apk-file.jpg' width='200'>
    <img src='docs/images/02-installing-apk.jpg' width='200'>
 
-3. An `Unsafe app blocked` warning will pop up. Click `More details` and then click `Install anyway`. Click `Open` to open the app.
+3. An `Unsafe app blocked` warning will appear, because the app is not distributed through the
+   Play Store. Tap `More details`, then `Install anyway`.
 
    <img src='docs/images/03-unsafe-app-blocked.jpg' width='200'>
    <img src='docs/images/04-unsafe-app-install-anyway.jpg' width='200'>
-   <img src='docs/images/05-app-installed.jpg' width='200'>
 
-4. Allow the app to record audio and send notifications. These permissions are required for the app to work properly. If you accidentally denied the permissions, you must go to the app settings page to allow them.
+4. Allow the app to record audio and to post notifications. Both are required; see
+   [Permissions](#permissions). If you deny them by accident you will have to grant them from the
+   system app settings page.
 
    <img src='docs/images/06-record-audio-permission.jpg' width='200'>
-   <!-- TODO: Add send notification permission screenshot -->
 
-5. Go to the app settings page and enter your configuration. You have 2 choices, either using the official OpenAI API with [your API key](https://platform.openai.com/api-keys) or self-host a [Whisper ASR Webservice](https://github.com/ahmetoner/whisper-asr-webservice). For more information, see the [Services](#services) section.
+5. Open the app and fill in the settings — see [Settings](#settings) and [Backends](#backends)
+   below.
 
-   <img src='docs/images/08-app-settings-page.jpg' width='200'>
+6. Enable the keyboard in the system settings. The exact path varies by Android version and
+   vendor; on most devices it is `Settings > System > Languages & input > On-screen keyboard`.
 
-   Some example configurations:
-
-   - OpenAI API:
-     ```
-     Speech to Text Backend:  OpenAI API
-     Endpoint:                https://api.openai.com/v1/audio/transcriptions
-     API Key:                 sk-...xxxx
-     Model:                   whisper-1
-     Language Code:
-     ```
-   - Whisper ASR Webservice:
-     ```
-     Speech to Text Backend:  Whisper ASR Webservice
-     Endpoint:                http://<SERVER_IP>:9000/asr
-     API Key:
-     Model:
-     Language Code:
-     ```
-   - NVIDIA NIM:
-     ```
-     Speech to Text Backend:  NVIDIA NIM
-     Endpoint:                http://<SERVER_IP>:9000/v1/audio/transcriptions
-     API Key:
-     Model:
-     Language Code:           multi
-     ```
-
-6. Go to the system settings page and enable the app keyboard. This process may vary depending on your Android version and phone model. The following screenshots are taken on Android 13 of a Asus Zenfone 8.
-
-   <img src='docs/images/09-settings.jpg' width='200'>
-   <img src='docs/images/10-settings-system.jpg' width='200'>
    <img src='docs/images/11-settings-languages-and-input.jpg' width='200'>
    <img src='docs/images/12-settings-on-screen-keyboard.jpg' width='200'>
-   <img src='docs/images/13-settings-on-screen-keyboard-attention.jpg' width='200'>
-   <img src='docs/images/14-settings-on-screen-keyboard-note.jpg' width='200'>
    <img src='docs/images/15-settings-on-screen-keyboard-on.jpg' width='200'>
 
-7. Open any app that requires text input, such as a browser, and click the input box. Choose the app keyboard by clicking the bottom right button and choosing `Whisper Input`.
+7. Open any app with a text field, tap the input box, and switch input method to
+   **QuickDictate**.
 
-   <img src='docs/images/16-duckduckgo.jpg' width='200'>
-   <img src='docs/images/17-choose-input-method.jpg' width='200'>
-   <img src='docs/images/18-app-keyboard.jpg' width='200'>
+8. Tap the microphone to start recording, and tap it again when you are done. The transcript is
+   typed into the field.
 
-   > Please note that the keyboard GUI will look slightly different than the screenshots due to the fixes in [#50](https://github.com/j3soon/whisper-to-input/pull/50).
+> The screenshots above are inherited from the upstream project and predate this fork. The
+> installation flow is unchanged, but the app appears as `Whisper Input` in them, and the
+> settings screen has since gained several options.
 
-8. Click the microphone button to start recording. After you finish speaking, click the microphone button again. The recognized text will be inputted into the text box.
+## Verifying a download
 
-## Keyboard Usage
+Every release APK carries a **build provenance attestation** issued by GitHub's Sigstore instance
+and bound to this repository's release workflow. It lets anyone confirm that a downloaded APK
+really was built by this repository, from a specific commit, and has not been modified since:
+
+```sh
+gh attestation verify QuickDictate-v1.0.1.apk --repo YairLevyJ/whisper-to-input
+```
+
+This is separate from the APK's own signature. The Android signature proves that an update comes
+from the same signer as the copy already installed; the attestation proves which source code the
+file was built from. Android has no notion of a signature "from GitHub", so the two answer
+different questions.
+
+## Keyboard usage
 
 <img src='docs/images/keyboard-layout.jpg' width='200'>
 
-- `Microphone Key` in the center: Click to start recording, click again to stop recording, and input the recognized text.
-- `Cancel Key` in the bottom left (Only visible when recording): Click to cancel the current recording.
-- `Backspace Key` in the upper right: Delete the previous character. If you press and hold this key, it will keep deleting characters until you release it.
-- `Enter Key` in the bottom right: Input a newline character. If you press this while recording, it will stop recording and input the recognized text with a trailing newline.
-- `Settings Key` in the upper left: Open the app settings page.
-- `Switch Key` in the upper left: Switch to the previous input method. Note that if there were no previous input method, this key will not do anything.
+- **Microphone** (centre) — start recording; tap again to stop and insert the transcript.
+- **Cancel** (bottom left, while recording) — discard the current recording.
+- **Backspace** (upper right) — delete the previous character; press and hold to repeat.
+- **Enter** (bottom right) — insert a newline. Pressing it while recording stops the recording
+  and inserts the transcript followed by a newline.
+- **Space** — insert a space. Pressing it while recording stops the recording and inserts the
+  transcript followed by a space.
+- **Settings** (upper left) — open the app settings.
+- **Switch** (upper left) — switch back to the previous input method.
+- **Retry** — rerun transcription on the last recording, so a network failure does not mean
+  saying it all again.
 
-## Services
+## Settings
 
-Either one of the following service can be used as the STT/ASR backend.
+| Setting | Meaning |
+| --- | --- |
+| Interface Language | Language of the app and keyboard UI. Follows the device language by default. |
+| Speech to Text Backend | Which kind of service the endpoint is. See [Backends](#backends). |
+| Endpoint | Full URL that transcription requests are sent to. |
+| API Key | Sent as `Authorization: Bearer` for OpenAI-compatible backends. |
+| Model | Model name to request, e.g. `whisper-1`. |
+| Language Code | Language of the **speech being transcribed** (e.g. `he`, `en`). Not the interface language. Leave empty to let the model detect it. |
+| Prompt | Optional context or vocabulary hint to bias recognition. May be left empty. |
+| Auto Stop Recording | Finish recording automatically after a few seconds of silence. Off by default. |
+| Microphone Audio Effects | Apply the device noise suppressor and automatic gain control. Off by default, since they can reduce accuracy. |
+| Auto Recording Start | Start recording as soon as the keyboard opens. |
+| Auto Switch Back | Return to the previous keyboard once the transcript is inserted. |
+| Add Trailing Space | Append a space after the transcript. |
 
-### OpenAI API
+## Backends
 
-Requires an [OpenAI API key](https://platform.openai.com/api-keys).
+### OpenAI-compatible API
 
-See the [documentation](https://platform.openai.com/docs/guides/speech-to-text?lang=curl) for more info.
+Anything implementing OpenAI's `/v1/audio/transcriptions` endpoint. Two common choices:
+
+```
+Speech to Text Backend:  OpenAI API
+Endpoint:                https://api.openai.com/v1/audio/transcriptions
+API Key:                 sk-...
+Model:                   whisper-1
+Language Code:           he
+```
+
+```
+Speech to Text Backend:  OpenAI API
+Endpoint:                https://api.groq.com/openai/v1/audio/transcriptions
+API Key:                 gsk_...
+Model:                   (see Groq's speech-to-text docs)
+Language Code:           he
+```
+
+See the [OpenAI](https://platform.openai.com/docs/guides/speech-to-text) and
+[Groq](https://console.groq.com/docs/speech-to-text) documentation for the models each offers.
 
 ### Whisper ASR Webservice
 
-The most commonly used open-source self-host whisper service. Requires a self-hosted server.
+A self-hosted open-source Whisper server —
+[whisper-asr-webservice](https://github.com/ahmetoner/whisper-asr-webservice). Setup is described
+in [upstream PR #13](https://github.com/j3soon/whisper-to-input/pull/13).
 
-[Whisper ASR Webservice](https://github.com/ahmetoner/whisper-asr-webservice) can be set up as described in [#13](https://github.com/j3soon/whisper-to-input/pull/13).
+```
+Speech to Text Backend:  Whisper ASR Webservice
+Endpoint:                http://<SERVER_IP>:9000/asr
+API Key:
+Model:
+Language Code:           he
+```
 
-### NVIDIA NIM (Self-hosted)
+### NVIDIA NIM (self-hosted)
 
-NVIDIA's optimized whisper model using TensorRT-LLM. Requires a self-hosted server.
+NVIDIA's TensorRT-LLM-optimised Whisper, via
+[the whisper-large-v3 NIM](https://build.nvidia.com/openai/whisper-large-v3). Requires a
+self-hosted GPU server.
 
-Use the [openai/whisper-large-v3 NIM](https://build.nvidia.com/openai/whisper-large-v3) by following [the deployment guide](https://build.nvidia.com/openai/whisper-large-v3/deploy). After generating a NGC API key, run:
+```
+Speech to Text Backend:  NVIDIA NIM
+Endpoint:                http://<SERVER_IP>:9000/v1/audio/transcriptions
+API Key:
+Model:
+Language Code:           multi
+```
+
+> **Untested in this fork.** Upstream sent OGG/Opus to this backend; QuickDictate sends WAV to
+> every backend. NVIDIA Riva supports `LINEAR_PCM` natively, so this should work, but it has not
+> been verified against a live NIM instance. Please
+> [open an issue](https://github.com/YairLevyJ/whisper-to-input/issues) if it does not.
+
+<details>
+<summary>Deploying the NIM container</summary>
+
+After generating an NGC API key, follow
+[the deployment guide](https://build.nvidia.com/openai/whisper-large-v3/deploy):
 
 ```sh
 export NGC_API_KEY=<PASTE_API_KEY_HERE>
@@ -128,146 +257,128 @@ docker run -it --rm --name=riva-asr \
    nvcr.io/nim/nvidia/riva-asr:1.3.0
 ```
 
-and wait for a while. It should show the following when launched successfully:
+Startup takes a while, and ends with:
 
 ```
 INFO:uvicorn.error:Uvicorn running on http://0.0.0.0:9000 (Press CTRL+C to quit)
 ```
 
-Perform a health check:
+Check readiness and try a sample:
 
 ```sh
 curl -X 'GET' 'http://localhost:9000/v1/health/ready'
-```
+# {"ready":true}
 
-this should show:
-
-```
-{"ready":true}
-```
-
-Download a sample audio:
-
-```sh
 # MP3 will not work, use wav instead.
 wget https://github.com/audio-samples/audio-samples.github.io/raw/refs/heads/master/samples/wav/ted_speakers/BillGates/sample-0.wav
-```
 
-Then test it:
-
-```sh
 curl --request POST \
   --url http://localhost:9000/v1/audio/transcriptions \
   --header 'Content-Type: multipart/form-data' \
   --form file=@./sample-0.wav \
   --form language=multi \
   --form response_format=text
+# "A cramp is no small danger on a swim. "
 ```
 
-this should show:
+</details>
 
-```
-"A cramp is no small danger on a swim. "
-```
+## Privacy and data handling
 
-The following Python package is used in the official guide, but isn't required. We still include these instructions here for reference:
+- Recordings are written to the app's **internal** cache directory, which other apps cannot read,
+  and are deleted after a successful transcription.
+- Audio is sent **only** to the endpoint you configure. There is no telemetry, no analytics, and
+  no other network destination anywhere in the code.
+- As an input method, the app *could* observe everything you type. It does not: it only writes
+  text into the field, and reads the current selection solely to decide whether backspace should
+  delete one character or the selected range.
+- The API key is stored in the app's private storage in plain text — normal for an app of this
+  kind, readable only by the app itself or by root. `allowBackup` is disabled so it is not
+  included in cloud backups or device transfers.
+- Cleartext HTTP is permitted, because the self-hosted backends are commonly reached over plain
+  HTTP on a local network. If you configure an `http://` endpoint over an untrusted network your
+  API key travels unencrypted — use `https://` for anything hosted remotely.
+
+## Building
 
 ```sh
-sudo apt-get install python3-pip
-pip install nvidia-riva-client
-git clone https://github.com/nvidia-riva/python-clients.git
+cd android
+./gradlew assembleDebug
 ```
 
-and
+Requires JDK 17 and the Android SDK (compileSdk 34). The resulting APK is at
+`android/app/build/outputs/apk/debug/app-debug.apk`.
 
-```sh
-python3 python-clients/scripts/asr/transcribe_file_offline.py --server 0.0.0.0:50051 --input-file ./sample-0.wav --language-code multi
-```
+Debug builds are debuggable and are signed with a throwaway key, so two of them cannot be
+installed over one another. They are for testing a change, not for daily use.
 
-will show something like:
-
-```
-{
-  "results": [
-    {
-      "alternatives": [
-        {
-          "transcript": "a cramp is no small danger on a swim ",
-          "confidence": 0.0,
-          "words": [],
-          "languageCode": []
-        }
-      ],
-      "channelTag": 1,
-      "audioProcessed": 2.84625
-    }
-  ],
-  "id": {
-    "value": "dc98a7d8-487a-4825-bf3c-6f9621914246"
-  }
-}
-Final transcript: a cramp is no small danger on a swim 
-```
-
-and
-
-```sh
-python3 python-clients/scripts/asr/transcribe_file_offline.py --list-models
-```
-
-will show:
-
-```
-Available ASR models
-{'en,zh,de,es,ru,ko,fr,ja,pt,tr,pl,ca,nl,ar,sv,it,id,hi,fi,vi,he,uk,el,ms,cs,ro,da,hu,ta,no,th,ur,hr,bg,lt,la,mi,ml,cy,sk,te,fa,lv,bn,sr,az,sl,kn,et,mk,br,eu,is,hy,ne,mn,bs,kk,sq,sw,gl,mr,pa,si,km,sn,yo,so,af,oc,ka,be,tg,sd,gu,am,yi,lo,uz,fo,ht,ps,tk,nn,mt,sa,lb,my,bo,tl,mg,as,tt,haw,ln,ha,ba,jw,su,yue,multi': [{'model': ['whisper-large-v3-multi-asr-offline-asr-bls-ensemble']}]}
-```
+CI builds every push and pull request through the `Build` workflow. Cutting a signed release is
+the `Release` workflow — see [docs/RELEASING.md](docs/RELEASING.md) for the keystore and secrets
+it needs.
 
 ## Debugging
 
-All current builds in the [release page](https://github.com/j3soon/whisper-to-input/releases) are debug builds. To view the logs, enable [USB debugging](https://developer.android.com/studio/debug/dev-options), connect your phone to a PC, and use `adb logcat` to view the logs. If you have a local Android Studio install, launch the [ADB tool](https://developer.android.com/tools/adb), otherwise, you may want to consider installing a minimal standalone ADB from [Minimal ADB and Fastboot](https://xdaforums.com/t/tool-minimal-adb-and-fastboot-2-9-18.2317790/).
-
-Below are some useful `adb logcat` commands:
+Enable [USB debugging](https://developer.android.com/studio/debug/dev-options), connect the phone
+to a computer, and use [`adb logcat`](https://developer.android.com/tools/logcat):
 
 ```sh
 adb devices
-adb logcat *:E
-adb logcat *:W
-adb logcat *:I
-adb logcat *:D
-adb logcat *:V
+adb logcat *:E     # errors only
+adb logcat *:W     # warnings and above
 ```
 
-See [the adb doc](https://developer.android.com/tools/logcat) for more info.
+The app logs under two tags: `whisper-input` for recording, `WhisperTranscriber` for the
+transcription request.
 
-## Permission Description
+Release builds are **not** debuggable — a debugger cannot attach to them, which is deliberate,
+since the process memory holds your API key. Build a debug APK to investigate a problem.
 
-- `RECORD_AUDIO`: Required for the app to record audio for voice input.
-- `POST_NOTIFICATIONS`: Required for the app to show toasts in the background if any error occurs.
+## Permissions
 
-## FAQ and Known Issues
+- `RECORD_AUDIO` — required to record speech.
+- `POST_NOTIFICATIONS` — required to surface errors as toasts while in the background.
+- `INTERNET` — required to reach the transcription endpoint.
 
-- Sometimes the keyboard will silently fail, please see issue [#17](https://github.com/j3soon/whisper-to-input/issues/17) for further information.
-- Taiwanese (or Hokkien) transcription seems to work quiet well, although [not declared officially](https://github.com/openai/whisper) (thanks [@ijsun](https://github.com/ijsun) for discovering this). To support Taiwanese transcription, do not set the `Language Code` in the settings page.
+## Known issues
 
-Please [open an issue](https://github.com/j3soon/whisper-to-input/issues) if you have any questions.
+- Hebrew right-to-left layout and the voice-activity-detection thresholds have had limited
+  real-device testing. Please report anything that looks wrong.
+- The keyboard occasionally fails silently; see
+  [upstream issue #17](https://github.com/j3soon/whisper-to-input/issues/17).
+- Taiwanese (Hokkien) transcription works reasonably well even though it is
+  [not officially claimed](https://github.com/openai/whisper) by Whisper — leave `Language Code`
+  empty to use it. Note that this fork no longer performs Traditional/Simplified conversion on
+  the result.
 
-## Developer Notes
+## License and credits
 
-To build and release a newer version, open Android Studio and follow the steps below:
+This repository is licensed under the **GNU General Public License v3.0**, the same licence as
+the upstream project. See [LICENSE](LICENSE).
 
-1. Bump the version code and version name.
-2. Retrieve signing keystore and its password from [Johnson](https://github.com/j3soon).
-3. Menu: `Build > Generate Signed App Bundle / APK...`
-4. Select `APK`, and fill in the signing keystore path and password, and select `Debug` in the next step to build.
-5. Rename the file `whisper-to-input/android/app/build/outputs/apk/debug/app-debug.apk` accordingly.
-6. Create Git tag and release on GitHub.
+Both the original work and the modifications in this fork are distributed under GPLv3. You may
+use, study, modify and redistribute it under those terms; if you distribute it, you must pass on
+the same freedoms, provide access to the corresponding source, and state your changes. The
+complete corresponding source is this repository.
 
-See [the official document](https://developer.android.com/studio/publish/app-signing#sign_release) for more information.
+### Original work
 
-## License
+QuickDictate is derived from
+**[whisper-to-input](https://github.com/j3soon/whisper-to-input)** (Mandarin name: 輕聲細語輸入法),
+copyright © 2023-2025 Yan-Bin Diau, Johnson Sun.
 
-This repository is licensed under the GPLv3 license. For more information, please refer to the [LICENSE](android/LICENSE) file.
+Main contributors to the original project: Yan-Bin Diau
+([@tigerpaws01](https://github.com/tigerpaws01)), Johnson Sun
+([@j3soon](https://github.com/j3soon)), Ying-Chou Sun ([@ijsun](https://github.com/ijsun)). The
+full list is in the
+[upstream contributor list](https://github.com/j3soon/whisper-to-input/graphs/contributors).
 
-Main Contributors: Yan-Bin Diau ([@tigerpaws01](https://github.com/tigerpaws01)), Johnson Sun ([@j3soon](https://github.com/j3soon)), Ying-Chou Sun ([@ijsun](https://github.com/ijsun))
+The original copyright and licence headers are preserved in every source file that carried them.
+The screenshots under `docs/images/` are from the original project.
 
-For a complete list of contributors to the code of this repository, please visit the [contributor list](https://github.com/j3soon/whisper-to-input/graphs/contributors).
+### Modifications
+
+Copyright © 2026 [@YairLevyJ](https://github.com/YairLevyJ), July 2026. See
+[What is different from upstream](#what-is-different-from-upstream) for a summary, and the commit
+history for the details.
+
+The original authors have no involvement in this fork and bear no responsibility for it.
