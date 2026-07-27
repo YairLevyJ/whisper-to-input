@@ -10,7 +10,7 @@
 >
 > This fork is **not** affiliated with, endorsed by, or supported by the original authors.
 > Please do not report problems with this fork to the upstream project — open an issue
-> [here](https://github.com/YairLevyJ/whisper-to-input/issues) instead.
+> [here](https://github.com/YairLevyJ/QuickDictate/issues) instead.
 >
 > Like the original, this fork is licensed under the **GPLv3**. See [License and credits](#license-and-credits).
 
@@ -86,7 +86,7 @@ a full Hebrew translation. The layout mirrors right-to-left when Hebrew is selec
 
 ## Installation
 
-1. Download the `.apk` from [the latest release](https://github.com/YairLevyJ/whisper-to-input/releases/latest).
+1. Download the `.apk` from [the latest release](https://github.com/YairLevyJ/QuickDictate/releases/latest).
 
 2. Open the file on your phone and tap `Install`.
 
@@ -132,7 +132,7 @@ and bound to this repository's release workflow. It lets anyone confirm that a d
 really was built by this repository, from a specific commit, and has not been modified since:
 
 ```sh
-gh attestation verify QuickDictate-v1.0.1.apk --repo YairLevyJ/whisper-to-input
+gh attestation verify QuickDictate-v1.0.1.apk --repo YairLevyJ/QuickDictate
 ```
 
 This is separate from the APK's own signature. The Android signature proves that an update comes
@@ -229,7 +229,7 @@ Language Code:           multi
 > **Untested in this fork.** Upstream sent OGG/Opus to this backend; QuickDictate sends WAV to
 > every backend. NVIDIA Riva supports `LINEAR_PCM` natively, so this should work, but it has not
 > been verified against a live NIM instance. Please
-> [open an issue](https://github.com/YairLevyJ/whisper-to-input/issues) if it does not.
+> [open an issue](https://github.com/YairLevyJ/QuickDictate/issues) if it does not.
 
 <details>
 <summary>Deploying the NIM container</summary>
