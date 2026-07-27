@@ -13,8 +13,8 @@ android {
         applicationId = "com.yair.whispergroqinput"
         minSdk = 24
         targetSdk = 34
-        versionCode = 5
-        versionName = "1.0"
+        versionCode = 6
+        versionName = "1.0.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
