@@ -139,6 +139,7 @@ jobs:
             "android/app/build/outputs/apk/release/dist/$ASSET_NAME" \
             --title "$TAG" \
             --notes "$NOTES" \
+            --generate-notes \
             --target "$GITHUB_SHA" \
             $FLAGS
 
