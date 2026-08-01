@@ -1,11 +1,15 @@
 name: Build
 
-# Manually-triggered check that the app still compiles, plus a throwaway APK for testing a branch.
+# Manually-triggered check that the app still compiles, plus a signed APK for trying a branch
+# out on a device before cutting a real release.
 #
-# What this produces is a *debug* build, which is not the same artifact as a release:
-# it is debuggable, and it is signed with a throwaway key the runner generates per job,
-# so APKs from two different runs cannot be installed over one another.
-# Use the Release workflow for anything meant to stay installed.
+# This builds the *release* build type, signed with the same keystore as the Release workflow,
+# so it installs cleanly over an existing release build already on the device (Android refuses
+# an update whose signing certificate differs from the installed one). It needs the same four
+# secrets as Release - see docs/RELEASING.md.
+#
+# This is not a substitute for the Release workflow: nothing here is published, and the APK
+# carries no build provenance attestation or version tag.
 
 on:
   workflow_dispatch:
@@ -32,14 +36,41 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
-      - name: Build debug APK
+      - name: Decode signing keystore
+        env:
+          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$RELEASE_KEYSTORE_BASE64" ]; then
+            echo "::error::RELEASE_KEYSTORE_BASE64 is not set. See docs/RELEASING.md for how to create the keystore and add the four secrets."
+            exit 1
+          fi
+          printf '%s' "$RELEASE_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+
+      - name: Build signed APK
         working-directory: android
+        env:
+          RELEASE_KEYSTORE_FILE: ${{ runner.temp }}/release.jks
+          RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
         # --console=plain keeps the output non-interactive and line-oriented, so a stall is
         # visible in the log instead of hidden behind the rich console renderer.
-        run: ./gradlew assembleDebug --console=plain --no-daemon --stacktrace
+        run: ./gradlew assembleRelease --console=plain --no-daemon --stacktrace
+
+      # Guards against silently uploading an unsigned APK, which would not install over an
+      # existing signed copy at all.
+      - name: Verify the APK is signed
+        run: |
+          APKSIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | tail -n 1)
+          "$APKSIGNER" verify --verbose --print-certs \
+            android/app/build/outputs/apk/release/app-release.apk
 
       - uses: actions/upload-artifact@v4
         with:
-          name: test-build-debug-apk
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          name: test-build-signed-apk
+          path: android/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
+
+      - name: Remove the keystore from the runner
+        if: always()
+        run: rm -f "$RUNNER_TEMP/release.jks"

@@ -60,6 +60,9 @@
     <string name="settings_prompt">Prompt</string>
     <string name="settings_prompt_desc">Optional context or vocabulary hint sent to the transcription API to bias recognition (e.g., names, jargon, or a sample sentence in the target language). May be left empty.</string>
     <string name="settings_prompt_hint">Enter optional context/vocabulary hint…</string>
+    <string name="settings_text_shortcuts">Text Shortcuts</string>
+    <string name="settings_text_shortcuts_desc">Replace spoken phrases with fixed text, one per line, formatted as trigger=replacement (e.g., my email=jane@example.com). The trigger is matched as a whole phrase, case-insensitively, anywhere in the transcribed text. May be left empty.</string>
+    <string name="settings_text_shortcuts_hint"><![CDATA[my email=jane@example.com]]></string>
     <string name="settings_option_yes">Yes</string>
     <string name="settings_option_no">No</string>
     <string name="settings_auto_stop_recording">Auto Stop Recording</string>

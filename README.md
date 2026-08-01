@@ -60,6 +60,9 @@ a full Hebrew translation. The layout mirrors right-to-left when Hebrew is selec
 - **Prompt setting** — optional free-text context or vocabulary hint, sent as the standard
   `prompt` field to OpenAI-compatible endpoints (and `initial_prompt` to Whisper ASR Webservice).
   Useful for biasing recognition toward names, jargon, or a particular language.
+- **Text shortcuts** — expand spoken phrases into fixed text after transcription, e.g. saying "my
+  email" to insert a full email address. Configured as one `trigger=replacement` pair per line;
+  see [Settings](#settings).
 - **Auto stop recording** — a voice-activity-detection state machine that finishes the recording
   after a few seconds of silence, and cancels it if speech never starts. Upstream shipped the
   tuning constants for this but never wired it up. Off by default.
@@ -167,6 +170,7 @@ different questions.
 | Model | Model name to request, e.g. `whisper-1`. |
 | Language Code | Language of the **speech being transcribed** (e.g. `he`, `en`). Not the interface language. Leave empty to let the model detect it. |
 | Prompt | Optional context or vocabulary hint to bias recognition. May be left empty. |
+| Text Shortcuts | Replace spoken phrases with fixed text. One `trigger=replacement` pair per line, e.g. `my email=jane@example.com`. Matched as a whole phrase, case-insensitively, anywhere in the transcript. May be left empty. |
 | Auto Stop Recording | Finish recording automatically after a few seconds of silence. Off by default. |
 | Microphone Audio Effects | Apply the device noise suppressor and automatic gain control. Off by default, since they can reduce accuracy. |
 | Auto Recording Start | Start recording as soon as the keyboard opens. |
@@ -312,9 +316,12 @@ Requires JDK 17 and the Android SDK (compileSdk 34). The resulting APK is at
 Debug builds are debuggable and are signed with a throwaway key, so two of them cannot be
 installed over one another. They are for testing a change, not for daily use.
 
-CI builds every push and pull request through the `Build` workflow. Cutting a signed release is
-the `Release` workflow — see [docs/RELEASING.md](docs/RELEASING.md) for the keystore and secrets
-it needs.
+The `Build` workflow (manually triggered from the Actions tab) instead builds the **release**
+build type, signed with the same keystore as the `Release` workflow, so its output installs
+cleanly over an existing release build already on your device. It's for trying out a branch on
+your own device before cutting a real release — nothing it produces is published, and unlike
+`Release` it carries no version tag or build provenance attestation. See
+[docs/RELEASING.md](docs/RELEASING.md) for the keystore and secrets both workflows need.
 
 ## Debugging
 
@@ -330,8 +337,10 @@ adb logcat *:W     # warnings and above
 The app logs under two tags: `whisper-input` for recording, `WhisperTranscriber` for the
 transcription request.
 
-Release builds are **not** debuggable — a debugger cannot attach to them, which is deliberate,
-since the process memory holds your API key. Build a debug APK to investigate a problem.
+Release builds — including the ones produced by the `Build` and `Release` workflows — are
+**not** debuggable — a debugger cannot attach to them, which is deliberate, since the process
+memory holds your API key. Build a local debug APK (`./gradlew assembleDebug`) to investigate a
+problem.
 
 ## Permissions
 
