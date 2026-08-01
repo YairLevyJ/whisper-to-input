@@ -316,9 +316,12 @@ Requires JDK 17 and the Android SDK (compileSdk 34). The resulting APK is at
 Debug builds are debuggable and are signed with a throwaway key, so two of them cannot be
 installed over one another. They are for testing a change, not for daily use.
 
-CI builds every push and pull request through the `Build` workflow. Cutting a signed release is
-the `Release` workflow — see [docs/RELEASING.md](docs/RELEASING.md) for the keystore and secrets
-it needs.
+The `Build` workflow (manually triggered from the Actions tab) instead builds the **release**
+build type, signed with the same keystore as the `Release` workflow, so its output installs
+cleanly over an existing release build already on your device. It's for trying out a branch on
+your own device before cutting a real release — nothing it produces is published, and unlike
+`Release` it carries no version tag or build provenance attestation. See
+[docs/RELEASING.md](docs/RELEASING.md) for the keystore and secrets both workflows need.
 
 ## Debugging
 
@@ -334,8 +337,10 @@ adb logcat *:W     # warnings and above
 The app logs under two tags: `whisper-input` for recording, `WhisperTranscriber` for the
 transcription request.
 
-Release builds are **not** debuggable — a debugger cannot attach to them, which is deliberate,
-since the process memory holds your API key. Build a debug APK to investigate a problem.
+Release builds — including the ones produced by the `Build` and `Release` workflows — are
+**not** debuggable — a debugger cannot attach to them, which is deliberate, since the process
+memory holds your API key. Build a local debug APK (`./gradlew assembleDebug`) to investigate a
+problem.
 
 ## Permissions
 

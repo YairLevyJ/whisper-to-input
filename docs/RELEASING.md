@@ -4,20 +4,27 @@ The `Release` workflow builds the distributable APK, attaches a GitHub-signed pr
 attestation to it, and publishes it as a GitHub Release. It is run manually from the
 Actions tab.
 
-## Why a release build is not the same as the CI build
+## Why local debug builds differ from CI builds
 
-The `Build` workflow produces a **debug** APK. That is fine for trying a branch out, but it
-differs from a release build in two ways that matter:
+A local `./gradlew assembleDebug` produces a **debug** APK: `android:debuggable` is `true`
+(anything with ADB access can attach a debugger and read process memory, including the API
+key), and it is signed with a key generated fresh by the machine that built it — so two debug
+builds, even from identical source, cannot be installed over one another. Android refuses an
+update whose signing certificate differs from the installed one, so the old copy has to be
+uninstalled first, which also wipes the settings.
 
-| | Debug build | Release build |
+Both the `Build` and `Release` workflows instead build the **release** build type — not
+debuggable, and signed with the shared keystore below — so every build from either workflow
+installs cleanly over the last one. They differ only in what happens to the result:
+
+| | `Build` workflow | `Release` workflow |
 |---|---|---|
-| `android:debuggable` | `true` — anything with ADB access can attach a debugger and read process memory, including the API key | `false` |
-| Signing key | Generated fresh by the runner on every job, so no two builds share a key | Your keystore, stable across releases |
+| Purpose | Try a branch on your own device before releasing | Publish a distributable version |
+| Output | Workflow artifact only | GitHub Release, with the APK attached |
+| Build provenance attestation | No | Yes |
+| Version tag | No | Yes, the one you give it when running it |
 
-The second point has a practical consequence: two debug APKs from two different CI runs
-cannot be installed over one another. Android refuses an update whose signing certificate
-differs from the installed one, so the old version has to be uninstalled first — which also
-wipes the settings. Release builds signed with the same keystore update cleanly.
+Both need the same four signing secrets set up below.
 
 ## One-time setup: create the signing keystore
 
