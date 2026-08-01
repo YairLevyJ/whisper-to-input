@@ -13,8 +13,12 @@ android {
         applicationId = "com.yair.whispergroqinput"
         minSdk = 24
         targetSdk = 34
-        versionCode = 6
-        versionName = "1.0.1"
+        // Overridden by the Release/Build workflows via -PappVersionCode/-PappVersionName, so
+        // the version typed into the Release workflow is the single source of truth and never
+        // needs to be bumped here by hand. These defaults are only for a plain local build, and
+        // should track the last version actually published.
+        versionCode = (project.findProperty("appVersionCode") as String?)?.toIntOrNull() ?: 6
+        versionName = project.findProperty("appVersionName") as String? ?: "1.0.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

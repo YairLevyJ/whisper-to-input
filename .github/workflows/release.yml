@@ -15,17 +15,18 @@ name: Release
 #
 #         gh attestation verify <asset-name> --repo <owner>/<repo>
 #
-# The published asset is always named <app-name>-v<version>.apk, where <app-name> is read
-# from the app_name string resource rather than duplicated here, so it never drifts out of
-# sync with what the app actually displays on the device.
+# The version you type in (e.g. "1.1.0") is the single source of truth: it drives the git
+# tag, the release title, the app's versionName, and its versionCode, so nothing needs to be
+# bumped in the source beforehand. The published asset is always named <app-name>-v<version>.apk,
+# where <app-name> is read from the app_name string resource.
 #
 # Setting up the signing secrets is documented in docs/RELEASING.md.
 
 on:
   workflow_dispatch:
     inputs:
-      tag:
-        description: 'Tag for the release, e.g. v1.0'
+      version:
+        description: 'Version to release, major.minor.patch, e.g. 1.1.0 (no leading "v" - added automatically)'
         required: true
       prerelease:
         description: 'Mark the release as a pre-release'
@@ -44,6 +45,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Compute version
+        id: version
+        run: |
+          VERSION="${{ inputs.version }}"
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Version must be major.minor.patch, e.g. 1.1.0 (got: '$VERSION')"
+            exit 1
+          fi
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
+          # Deterministic function of the version number, so versionCode never needs to be
+          # tracked as separate state - it is always derived fresh from what you type in.
+          # Stays strictly increasing release over release as long as minor and patch each
+          # stay below 100, which is the same assumption most Android version-code schemes make.
+          VERSION_CODE=$((MAJOR * 10000 + MINOR * 100 + PATCH))
+          echo "Version $VERSION -> versionCode $VERSION_CODE, tag v$VERSION"
+          echo "name=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "code=$VERSION_CODE" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+
       - name: Determine release asset name
         id: asset
         run: |
@@ -52,9 +72,7 @@ jobs:
             echo "::error::Could not read app_name from res/values/strings.xml"
             exit 1
           fi
-          VERSION="${{ inputs.tag }}"
-          VERSION="${VERSION#v}"
-          ASSET_NAME="${APP_NAME}-v${VERSION}.apk"
+          ASSET_NAME="${APP_NAME}-${{ steps.version.outputs.tag }}.apk"
           echo "Asset name: $ASSET_NAME"
           echo "name=$ASSET_NAME" >> "$GITHUB_OUTPUT"
 
@@ -87,7 +105,10 @@ jobs:
           RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
           RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
           RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
-        run: ./gradlew assembleRelease --console=plain --no-daemon --stacktrace
+        run: |
+          ./gradlew assembleRelease --console=plain --no-daemon --stacktrace \
+            -PappVersionName=${{ steps.version.outputs.name }} \
+            -PappVersionCode=${{ steps.version.outputs.code }}
 
       - name: Rename APK to release asset name
         run: |
@@ -109,7 +130,7 @@ jobs:
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ inputs.tag }}
+          TAG: ${{ steps.version.outputs.tag }}
           PRERELEASE: ${{ inputs.prerelease }}
           ASSET_NAME: ${{ steps.asset.outputs.name }}
         run: |

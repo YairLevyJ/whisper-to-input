@@ -65,7 +65,11 @@ Back up `release.jks` somewhere durable. GitHub secrets cannot be read back out.
 
 ## Cutting a release
 
-**Actions → Release → Run workflow**, and give it a tag such as `v1.0`.
+**Actions → Release → Run workflow**, and give it a version such as `1.1.0` (no leading `v` -
+that's added automatically). That single number drives everything: the git tag (`v1.1.0`), the
+release title, the app's `versionName`, and its `versionCode` (computed from the version as
+`major * 10000 + minor * 100 + patch`, so it always increases as long as minor and patch each
+stay under 100). Nothing needs to be bumped in the source beforehand.
 
 The workflow refuses to publish an unsigned APK: it runs `apksigner verify` before creating
 the release, so a misconfigured secret fails the run instead of shipping something that
