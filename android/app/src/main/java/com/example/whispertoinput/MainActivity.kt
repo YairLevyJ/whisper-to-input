@@ -63,6 +63,7 @@ val AUTO_RECORDING_START = booleanPreferencesKey("is-auto-recording-start")
 val AUTO_SWITCH_BACK = booleanPreferencesKey("auto-switch-back")
 val ADD_TRAILING_SPACE = booleanPreferencesKey("add-trailing-space")
 val PROMPT = stringPreferencesKey("prompt")
+val TEXT_SHORTCUTS = stringPreferencesKey("text-shortcuts")
 val AUTO_STOP_RECORDING = booleanPreferencesKey("auto-stop-recording")
 val AUDIO_EFFECTS = booleanPreferencesKey("audio-effects")
 
@@ -407,6 +408,7 @@ class MainActivity : AppCompatActivity() {
                 SettingText(R.id.field_api_key, API_KEY),
                 SettingText(R.id.field_model, MODEL, getString(R.string.settings_option_openai_api_default_model)),
                 SettingText(R.id.field_prompt, PROMPT),
+                SettingText(R.id.field_text_shortcuts, TEXT_SHORTCUTS),
                 SettingDropdown(R.id.spinner_auto_stop_recording, AUTO_STOP_RECORDING, hashMapOf(
                     getString(R.string.settings_option_yes) to true,
                     getString(R.string.settings_option_no) to false,

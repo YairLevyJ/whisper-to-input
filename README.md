@@ -60,6 +60,9 @@ a full Hebrew translation. The layout mirrors right-to-left when Hebrew is selec
 - **Prompt setting** — optional free-text context or vocabulary hint, sent as the standard
   `prompt` field to OpenAI-compatible endpoints (and `initial_prompt` to Whisper ASR Webservice).
   Useful for biasing recognition toward names, jargon, or a particular language.
+- **Text shortcuts** — expand spoken phrases into fixed text after transcription, e.g. saying "my
+  email" to insert a full email address. Configured as one `trigger=replacement` pair per line;
+  see [Settings](#settings).
 - **Auto stop recording** — a voice-activity-detection state machine that finishes the recording
   after a few seconds of silence, and cancels it if speech never starts. Upstream shipped the
   tuning constants for this but never wired it up. Off by default.
@@ -167,6 +170,7 @@ different questions.
 | Model | Model name to request, e.g. `whisper-1`. |
 | Language Code | Language of the **speech being transcribed** (e.g. `he`, `en`). Not the interface language. Leave empty to let the model detect it. |
 | Prompt | Optional context or vocabulary hint to bias recognition. May be left empty. |
+| Text Shortcuts | Replace spoken phrases with fixed text. One `trigger=replacement` pair per line, e.g. `my email=jane@example.com`. Matched as a whole phrase, case-insensitively, anywhere in the transcript. May be left empty. |
 | Auto Stop Recording | Finish recording automatically after a few seconds of silence. Off by default. |
 | Microphone Audio Effects | Apply the device noise suppressor and automatic gain control. Off by default, since they can reduce accuracy. |
 | Auto Recording Start | Start recording as soon as the keyboard opens. |

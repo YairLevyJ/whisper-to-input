@@ -65,9 +65,13 @@ class WhisperInputService : InputMethodService() {
 
     private fun transcriptionCallback(text: String?) {
         if (!text.isNullOrEmpty()) {
-            currentInputConnection?.commitText(text, 1)
-            // Check if auto-switch-back is enabled and switch if so
             CoroutineScope(Dispatchers.Main).launch {
+                val shortcuts = dataStore.data.map { preferences: Preferences ->
+                    TextShortcuts.parse(preferences[TEXT_SHORTCUTS] ?: "")
+                }.first()
+                currentInputConnection?.commitText(TextShortcuts.apply(text, shortcuts), 1)
+
+                // Check if auto-switch-back is enabled and switch if so
                 val autoSwitchBack = dataStore.data.map { preferences: Preferences ->
                     preferences[AUTO_SWITCH_BACK] ?: false
                 }.first()

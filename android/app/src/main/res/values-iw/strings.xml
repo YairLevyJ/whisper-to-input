@@ -60,6 +60,10 @@
     <string name="settings_prompt_desc">רמז הקשר או אוצר מילים אופציונלי שנשלח לשרת כדי להטות את הזיהוי (לדוגמה: שמות, מונחים מקצועיים, או משפט לדוגמה בשפת היעד). אפשר להשאיר ריק.</string>
     <string name="settings_prompt_hint">הזן רמז הקשר או אוצר מילים…</string>
 
+    <string name="settings_text_shortcuts">קיצורי טקסט</string>
+    <string name="settings_text_shortcuts_desc">החלפת ביטויים מדוברים בטקסט קבוע, שורה לכל קיצור, בפורמט קיצור=טקסט_חלופי (לדוגמה: המייל שלי=jane@example.com). הקיצור מזוהה כביטוי שלם, בלי הבדל בין אותיות גדולות לקטנות, בכל מקום בטקסט המתומלל. אפשר להשאיר ריק.</string>
+    <string name="settings_text_shortcuts_hint"><![CDATA[המייל שלי=jane@example.com]]></string>
+
     <string name="settings_option_yes">כן</string>
     <string name="settings_option_no">לא</string>
 
