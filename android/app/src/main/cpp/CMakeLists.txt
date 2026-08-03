@@ -37,9 +37,50 @@ elseif (${ANDROID_ABI} STREQUAL "armeabi-v7a")
     set(QUICKDICTATE_ARCH_FLAGS -mfpu=neon-vfpv4)
 endif()
 
+# Guard against silently regressing to the unoptimized baseline. Getting this wrong costs about an
+# order of magnitude in transcription speed but produces a perfectly working build, so it is only
+# noticeable by timing a transcription on a real device - exactly the kind of failure worth turning
+# into a build error. Ask the compiler which ARM features the chosen flags actually enable, rather
+# than trusting that the flag string was spelled correctly and reached the right target.
+function(quickdictate_require_arm_features)
+    execute_process(
+        COMMAND ${CMAKE_C_COMPILER} ${CMAKE_C_FLAGS} ${QUICKDICTATE_ARCH_FLAGS} -dM -E -
+        INPUT_FILE /dev/null
+        OUTPUT_VARIABLE detected_macros
+        ERROR_QUIET
+        RESULT_VARIABLE probe_failed
+    )
+    if (probe_failed)
+        message(WARNING "Could not probe ARM features; skipping optimization check")
+        return()
+    endif()
+    foreach (feature ${ARGN})
+        string(FIND "${detected_macros}" "__ARM_FEATURE_${feature} 1" feature_pos)
+        if (${feature_pos} EQUAL -1)
+            message(FATAL_ERROR
+                "__ARM_FEATURE_${feature} is not enabled for ${ANDROID_ABI} with flags "
+                "'${QUICKDICTATE_ARCH_FLAGS}'. Local transcription would be roughly an order of "
+                "magnitude slower than intended. Check GGML_CPU_ARM_ARCH above.")
+        endif()
+        message(STATUS "ARM feature ${feature} enabled for ${ANDROID_ABI}")
+    endforeach()
+endfunction()
+
+if (${ANDROID_ABI} STREQUAL "arm64-v8a")
+    quickdictate_require_arm_features(FP16_VECTOR_ARITHMETIC DOTPROD)
+endif()
+
 include(FetchContent)
 FetchContent_Declare(ggml SOURCE_DIR ${WHISPER_LIB_DIR}/ggml)
 FetchContent_MakeAvailable(ggml)
+
+# ggml derives its own -march from this, so a value that failed to stick (e.g. overridden by a
+# stale CMake cache) would quietly undo the whole point of setting it.
+if (${ANDROID_ABI} STREQUAL "arm64-v8a" AND NOT GGML_CPU_ARM_ARCH MATCHES "fp16")
+    message(FATAL_ERROR
+        "GGML_CPU_ARM_ARCH is '${GGML_CPU_ARM_ARCH}', expected an fp16-enabled architecture. "
+        "ggml's CPU kernels would be built for a plain armv8-a baseline.")
+endif()
 
 # The CPU kernels live in the separate `ggml-cpu` target, not `ggml` (which is a thin wrapper), so
 # that is what any extra compile options have to be attached to - whisper.cpp's Android example
