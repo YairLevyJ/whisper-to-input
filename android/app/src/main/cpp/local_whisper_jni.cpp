@@ -66,6 +66,15 @@ Java_com_example_whispertoinput_local_LocalWhisperNative_fullTranscribe(
     params.no_context = true;
     params.n_threads = num_threads;
     params.offset_ms = 0;
+    // whisper_full's default (temperature_inc = 0.2) re-runs the decoder up to 6 times at rising
+    // temperature whenever its own quality heuristics (entropy/logprob/no-speech thresholds)
+    // aren't satisfied - each retry re-decodes the whole segment, so a run that keeps failing the
+    // heuristic can take several times as long as a clean one. That fallback exists to rescue
+    // genuinely ambiguous audio, but for interactive dictation - where there's already a manual
+    // Retry button and slow beats "occasionally not the best possible transcript" - a single
+    // greedy pass is the better trade. temperature_inc <= 0 makes whisper_full skip the loop and
+    // decode once at params.temperature (0.0) instead of building the [0.0 .. 1.0] ladder.
+    params.temperature_inc = 0.0f;
     // Empty language string requests auto-detection; whisper.cpp expects a null pointer for that.
     params.language = has_language ? language_chars : nullptr;
     params.detect_language = !has_language;
