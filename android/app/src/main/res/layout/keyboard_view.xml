@@ -240,7 +240,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginStart="16dp"
-        android:background="?attr/selectableItemBackground"
+        android:background="#00FFFFFF"
         android:clickable="true"
         android:contentDescription="@string/keyboard_transcription_mode_hint"
         android:focusable="true"
