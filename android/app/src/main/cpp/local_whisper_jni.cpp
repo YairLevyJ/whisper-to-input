@@ -82,11 +82,18 @@ Java_com_example_whispertoinput_local_LocalWhisperNative_fullTranscribe(
         params.initial_prompt = initial_prompt_chars;
     }
 
-    LOGI("Starting local transcription: %d samples, %d threads", audio_data_length, num_threads);
+    LOGI("Starting local transcription: %d samples (%.1fs audio), %d threads, system=%s",
+         audio_data_length, audio_data_length / 16000.0f, num_threads,
+         whisper_print_system_info());
+    whisper_reset_timings(context);
     const int result = whisper_full(context, params, audio_data_arr, audio_data_length);
     if (result != 0) {
         LOGE("whisper_full failed with code %d", result);
     }
+    // Logs the encode/decode/sample breakdown to logcat, so a slow transcription can be attributed
+    // to a specific stage instead of guessed at. whisper.cpp routes these through its own log
+    // callback, which lands in logcat under the "whisper" tag by default on Android.
+    whisper_print_timings(context);
 
     env->ReleaseFloatArrayElements(audio_data, audio_data_arr, JNI_ABORT);
     env->ReleaseStringUTFChars(language_str, language_chars);

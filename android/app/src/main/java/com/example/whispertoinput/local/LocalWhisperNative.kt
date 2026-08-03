@@ -6,7 +6,12 @@ import android.util.Log
 // companion object) so the generated JNI symbols are unmangled: Java_..._LocalWhisperNative_foo.
 object LocalWhisperNative {
     private const val TAG = "LocalWhisperNative"
-    val isAvailable: Boolean = try {
+    // The library is built for an ARM baseline above the ABI minimum, so a chip without those
+    // instructions must never load it - see CpuFeatures.
+    val isAvailable: Boolean = if (!CpuFeatures.supportsLocalInference) {
+        Log.w(TAG, "CPU does not support the required instruction set; local inference disabled")
+        false
+    } else try {
         System.loadLibrary("local_whisper")
         true
     } catch (e: UnsatisfiedLinkError) {
