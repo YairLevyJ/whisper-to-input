@@ -41,6 +41,16 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
+      # Without an override, versionCode falls back to the placeholder in build.gradle.kts (6),
+      # which is far below any real release's versionCode (derived from its major.minor.patch).
+      # Android refuses to install an APK with a lower versionCode over one already installed
+      # (INSTALL_FAILED_VERSION_DOWNGRADE, surfaced to the user as a bare "App not installed"),
+      # so this build would never actually install over a published release. A Unix timestamp is
+      # comfortably above any realistic manual version code and strictly increasing run over run.
+      - name: Compute a versionCode guaranteed to be newer than any published release
+        id: version
+        run: echo "code=$(date +%s)" >> "$GITHUB_OUTPUT"
+
       - name: Decode signing keystore
         env:
           RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
@@ -60,7 +70,9 @@ jobs:
           RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
         # --console=plain keeps the output non-interactive and line-oriented, so a stall is
         # visible in the log instead of hidden behind the rich console renderer.
-        run: ./gradlew assembleRelease --console=plain --no-daemon --stacktrace
+        run: |
+          ./gradlew assembleRelease --console=plain --no-daemon --stacktrace \
+            -PappVersionCode=${{ steps.version.outputs.code }}
 
       # Guards against silently uploading an unsigned APK, which would not install over an
       # existing signed copy at all.
