@@ -31,6 +31,7 @@ import android.view.KeyEvent
 import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.edit
 import com.example.whispertoinput.keyboard.WhisperKeyboard
 import com.example.whispertoinput.recorder.RecorderManager
 import kotlinx.coroutines.CoroutineScope
@@ -44,10 +45,12 @@ import java.io.File
 private const val RECORDED_AUDIO_FILENAME_WAV = "recorded.wav"
 private const val AUDIO_MEDIA_TYPE_WAV = "audio/wav"
 private const val IME_SWITCH_OPTION_AVAILABILITY_API_LEVEL = 28
+private val TRANSCRIPTION_MODE_CYCLE =
+    listOf(TRANSCRIPTION_MODE_API, TRANSCRIPTION_MODE_LOCAL, TRANSCRIPTION_MODE_AUTO)
 
 class WhisperInputService : InputMethodService() {
     private val whisperKeyboard: WhisperKeyboard = WhisperKeyboard()
-    private val whisperTranscriber: WhisperTranscriber = WhisperTranscriber()
+    private val transcriptionCoordinator: TranscriptionCoordinator = TranscriptionCoordinator()
     private var recorderManager: RecorderManager? = null
     private var recordedAudioFilename: String = ""
     private var useVoiceActivityDetection: Boolean = false
@@ -88,6 +91,38 @@ class WhisperInputService : InputMethodService() {
         whisperKeyboard.reset()
     }
 
+    private fun transcriptionNoticeCallback(message: String) {
+        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+    }
+
+    private fun labelForTranscriptionMode(mode: String): String = when (mode) {
+        TRANSCRIPTION_MODE_LOCAL -> getString(R.string.keyboard_transcription_mode_local)
+        TRANSCRIPTION_MODE_AUTO -> getString(R.string.keyboard_transcription_mode_auto)
+        else -> getString(R.string.keyboard_transcription_mode_api)
+    }
+
+    private fun refreshTranscriptionModeLabel() {
+        CoroutineScope(Dispatchers.Main).launch {
+            val mode = dataStore.data.map { preferences: Preferences ->
+                preferences[TRANSCRIPTION_MODE] ?: TRANSCRIPTION_MODE_API
+            }.first()
+            whisperKeyboard.setTranscriptionModeLabel(labelForTranscriptionMode(mode))
+        }
+    }
+
+    private fun onCycleTranscriptionMode() {
+        CoroutineScope(Dispatchers.Main).launch {
+            val current = dataStore.data.map { preferences: Preferences ->
+                preferences[TRANSCRIPTION_MODE] ?: TRANSCRIPTION_MODE_API
+            }.first()
+            val next = TRANSCRIPTION_MODE_CYCLE[
+                (TRANSCRIPTION_MODE_CYCLE.indexOf(current) + 1) % TRANSCRIPTION_MODE_CYCLE.size
+            ]
+            dataStore.edit { settings -> settings[TRANSCRIPTION_MODE] = next }
+            whisperKeyboard.setTranscriptionModeLabel(labelForTranscriptionMode(next))
+        }
+    }
+
     private suspend fun updateRecordingSettings() {
         useVoiceActivityDetection = dataStore.data.map { preferences: Preferences ->
             preferences[AUTO_STOP_RECORDING] ?: false
@@ -111,6 +146,7 @@ class WhisperInputService : InputMethodService() {
         CoroutineScope(Dispatchers.Main).launch {
             updateRecordingSettings()
         }
+        refreshTranscriptionModeLabel()
 
         // Should offer ime switch?
         val shouldOfferImeSwitch: Boolean =
@@ -153,6 +189,7 @@ class WhisperInputService : InputMethodService() {
             { onSwitchIme() },
             { onOpenSettings() },
             { shouldShowRetry() },
+            { onCycleTranscriptionMode() },
         )
     }
 
@@ -184,16 +221,17 @@ class WhisperInputService : InputMethodService() {
 
     private fun onStartTranscription(attachToEnd: String) {
         recorderManager!!.stop()
-        whisperTranscriber.startAsync(this,
+        transcriptionCoordinator.startAsync(this,
             recordedAudioFilename,
             AUDIO_MEDIA_TYPE_WAV,
             attachToEnd,
             { transcriptionCallback(it) },
-            { transcriptionExceptionCallback(it) })
+            { transcriptionExceptionCallback(it) },
+            { transcriptionNoticeCallback(it) })
     }
 
     private fun onCancelTranscription() {
-        whisperTranscriber.stop()
+        transcriptionCoordinator.stop()
     }
 
     private fun onDeleteText() {
@@ -248,7 +286,7 @@ class WhisperInputService : InputMethodService() {
 
     override fun onWindowShown() {
         super.onWindowShown()
-        whisperTranscriber.stop()
+        transcriptionCoordinator.stop()
         whisperKeyboard.reset()
         recorderManager!!.stop()
 
@@ -257,6 +295,9 @@ class WhisperInputService : InputMethodService() {
         if (inputViewLanguage != null && inputViewLanguage != LocaleHelper.getLanguage(this)) {
             setInputView(onCreateInputView())
         }
+
+        // Picks up a transcription mode change made in settings since the keyboard was last shown.
+        refreshTranscriptionModeLabel()
 
         // If this is the first time calling onWindowShown, it means this IME is just being switched to.
         // Automatically starts recording after switching to Whisper Input. (if settings enabled)
@@ -277,14 +318,14 @@ class WhisperInputService : InputMethodService() {
 
     override fun onWindowHidden() {
         super.onWindowHidden()
-        whisperTranscriber.stop()
+        transcriptionCoordinator.stop()
         whisperKeyboard.reset()
         recorderManager!!.stop()
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        whisperTranscriber.stop()
+        transcriptionCoordinator.stop()
         whisperKeyboard.reset()
         recorderManager!!.stop()
     }

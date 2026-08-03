@@ -23,6 +23,12 @@
     <!-- Warning and Error Messages -->
     <string name="error_endpoint_unset">Error: Endpoint is not set in settings.</string>
     <string name="error_apikey_unset">Error: OpenAI API Key is not set in settings.</string>
+    <string name="error_local_model_not_downloaded">Error: The selected local model is not downloaded yet. Download it in settings.</string>
+    <string name="error_local_model_load_failed">Error: Failed to load the local model file. It may be corrupted — try downloading it again.</string>
+    <string name="error_local_transcription_failed">Error: Local transcription failed.</string>
+    <string name="error_local_native_unavailable">Error: The local transcription engine is not available on this device.</string>
+    <string name="notice_fell_back_to_local">Network transcription failed — used the local model instead.</string>
+    <string name="notice_fell_back_to_api">Local model unavailable — used the network backend instead.</string>
 
     <!-- Settings -->
     <string name="whisper_to_input_settings_title">QuickDictate Settings</string>
@@ -95,6 +101,40 @@
         <item>@string/settings_option_yes</item>
         <item>@string/settings_option_no</item>
     </string-array>
+
+    <!-- Local model -->
+    <string name="settings_transcription_mode">Transcription Mode</string>
+    <string name="settings_transcription_mode_desc">Whether to transcribe using the network backend above, an on-device local model, or automatically pick whichever is likely faster and fall back to the other one if it fails.</string>
+    <string name="settings_option_transcription_mode_api">Network (API)</string>
+    <string name="settings_option_transcription_mode_local">Local model</string>
+    <string name="settings_option_transcription_mode_auto">Auto</string>
+    <string-array name="settings_transcription_mode_array">
+        <item>@string/settings_option_transcription_mode_api</item>
+        <item>@string/settings_option_transcription_mode_local</item>
+        <item>@string/settings_option_transcription_mode_auto</item>
+    </string-array>
+    <string name="settings_local_model_variant">Local Model</string>
+    <string name="settings_local_model_variant_desc">Which on-device Whisper model to use. Larger models are more accurate — especially for languages other than English — but slower and heavier to download.</string>
+    <string name="local_model_variant_small">Small (~466 MB) — fastest, lower accuracy</string>
+    <string name="local_model_variant_medium">Medium (~1.5 GB) — balanced</string>
+    <string name="local_model_variant_large_v3_turbo_q5">Large-v3-turbo, quantized (~547 MB) — recommended: near-large-v3 accuracy, much faster</string>
+    <string name="local_model_variant_large_v3_q5">Large-v3, quantized (~1.1 GB) — highest accuracy, heaviest</string>
+    <string-array name="settings_local_model_variant_array">
+        <item>@string/local_model_variant_small</item>
+        <item>@string/local_model_variant_medium</item>
+        <item>@string/local_model_variant_large_v3_turbo_q5</item>
+        <item>@string/local_model_variant_large_v3_q5</item>
+    </string-array>
+    <string name="settings_local_model_download">Download Model</string>
+    <string name="settings_local_model_delete">Delete Model</string>
+    <string name="settings_local_model_status_not_downloaded">Not downloaded yet.</string>
+    <string name="settings_local_model_status_downloading">Downloading… %1$d%%</string>
+    <string name="settings_local_model_status_downloaded">Downloaded (%1$s).</string>
+    <string name="settings_local_model_download_failed">Download failed: %1$s</string>
+    <string name="keyboard_transcription_mode_api">API</string>
+    <string name="keyboard_transcription_mode_local">Local</string>
+    <string name="keyboard_transcription_mode_auto">Auto</string>
+    <string name="keyboard_transcription_mode_hint">Transcription mode: tap to switch between the network backend, the local model, and automatic.</string>
 
     <!-- UI Language -->
     <string name="settings_ui_language">Interface Language</string>

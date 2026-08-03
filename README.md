@@ -57,6 +57,9 @@ a full Hebrew translation. The layout mirrors right-to-left when Hebrew is selec
 
 ### Other changes
 
+- **Local model** — optional fully on-device transcription via
+  [whisper.cpp](https://github.com/ggml-org/whisper.cpp), with a manual/auto switch between it and
+  the network backend. See [Local model](#local-model). Not present upstream.
 - **Prompt setting** — optional free-text context or vocabulary hint, sent as the standard
   `prompt` field to OpenAI-compatible endpoints (and `initial_prompt` to Whisper ASR Webservice).
   Useful for biasing recognition toward names, jargon, or a particular language.
@@ -176,6 +179,8 @@ different questions.
 | Auto Recording Start | Start recording as soon as the keyboard opens. |
 | Auto Switch Back | Return to the previous keyboard once the transcript is inserted. |
 | Add Trailing Space | Append a space after the transcript. |
+| Transcription Mode | Network (API), Local model, or Auto. See [Local model](#local-model). |
+| Local Model | Which on-device model to download/use when Transcription Mode is Local or Auto. |
 
 ## Backends
 
@@ -287,12 +292,57 @@ curl --request POST \
 
 </details>
 
+## Local model
+
+QuickDictate can transcribe entirely on-device, with no network request at all, using
+[whisper.cpp](https://github.com/ggml-org/whisper.cpp) — no self-hosted server required. This is
+separate from the [Whisper ASR Webservice](#whisper-asr-webservice)/[NVIDIA NIM](#nvidia-nim-self-hosted)
+backends above, which are also self-hosted but still run *on a server* you reach over the network;
+the local model runs the recognition on the phone itself.
+
+The model file is **not** bundled in the APK — it would make every install several hundred MB to
+several GB regardless of whether you use this feature. Instead, pick a model in **Settings →
+Local Model** and tap **Download Model**; it's fetched from
+[huggingface.co/ggerganov/whisper.cpp](https://huggingface.co/ggerganov/whisper.cpp) (the same
+GGML-format models the whisper.cpp project itself publishes) into the app's private storage.
+
+| Model | Approx. size | Notes |
+| --- | --- | --- |
+| Small | ~466 MB | Fastest, noticeably lower accuracy — usable for English but weak on lower-resource languages such as Hebrew. |
+| Medium | ~1.5 GB | Balanced. |
+| Large-v3-turbo (quantized) | ~547 MB | **Recommended default.** Close to Large-v3 accuracy at a fraction of the size/latency, since only its decoder was distilled. |
+| Large-v3 (quantized) | ~1.1 GB | Highest accuracy, heaviest. |
+
+For Hebrew (or any language other than English), prefer Large-v3-turbo or Large-v3 — Whisper's
+small/base models are trained mostly on English and degrade a lot more on lower-resource languages
+than the size difference alone suggests.
+
+Once a model is downloaded, set **Transcription Mode**:
+
+- **Network (API)** — the previous, only, behavior: always uses the backend configured above.
+- **Local model** — always uses the downloaded model; no network request is made at all.
+- **Auto** — estimates which one will likely finish faster from the current link's OS-reported
+  bandwidth and the recording's length, and uses that one. If the chosen backend fails (or the
+  network turns out to be unusable) it automatically retries with the other one and shows a toast
+  saying it did so. This is a cheap estimate, not a real race between the two — actually running
+  both for every recording would double the network/CPU/battery cost, defeating the point of an
+  automatic low-effort choice.
+
+The same three modes are available as a quick-cycle button in the keyboard itself (top-left,
+below the switch-keyboard button), so you can flip to **Local** by hand the moment you notice a
+weak connection, without opening Settings.
+
+Local transcription runs on the CPU — there is no GPU/NPU acceleration — so expect it to be slower
+than a fast network backend on a good connection, and to drain more battery per transcription.
+`arm64-v8a` and `armeabi-v7a` are the only ABIs built; there is no x86/x86_64 (emulator) support.
+
 ## Privacy and data handling
 
 - Recordings are written to the app's **internal** cache directory, which other apps cannot read,
   and are deleted after a successful transcription.
 - Audio is sent **only** to the endpoint you configure. There is no telemetry, no analytics, and
-  no other network destination anywhere in the code.
+  no other network destination anywhere in the code. In Local-model mode, audio never leaves the
+  device at all — the only network request is the one-time model download.
 - As an input method, the app *could* observe everything you type. It does not: it only writes
   text into the field, and reads the current selection solely to decide whether backspace should
   delete one character or the selected range.
@@ -305,13 +355,21 @@ curl --request POST \
 
 ## Building
 
+The local-model inference engine ([whisper.cpp](https://github.com/ggml-org/whisper.cpp)) is
+vendored as a git submodule, so clone with `--recurse-submodules`, or if already cloned:
+
+```sh
+git submodule update --init
+```
+
 ```sh
 cd android
 ./gradlew assembleDebug
 ```
 
-Requires JDK 17 and the Android SDK (compileSdk 34). The resulting APK is at
-`android/app/build/outputs/apk/debug/app-debug.apk`.
+Requires JDK 17, the Android SDK (compileSdk 34), and the NDK + CMake (see
+`android/app/build.gradle.kts` for the pinned versions) for the native local-model build. The
+resulting APK is at `android/app/build/outputs/apk/debug/app-debug.apk`.
 
 Debug builds are debuggable and are signed with a throwaway key, so two of them cannot be
 installed over one another. They are for testing a change, not for daily use.
@@ -347,9 +405,15 @@ problem.
 - `RECORD_AUDIO` — required to record speech.
 - `POST_NOTIFICATIONS` — required to surface errors as toasts while in the background.
 - `INTERNET` — required to reach the transcription endpoint.
+- `ACCESS_NETWORK_STATE` — normal permission, no runtime prompt. Lets "Auto" transcription mode
+  read the current link's transport type and OS-reported bandwidth estimate.
 
 ## Known issues
 
+- **Local model is new and needs real-device testing**, particularly: transcription quality per
+  model size on Hebrew, battery/thermal behavior of longer local transcriptions, and the "Auto"
+  mode's fallback/estimate heuristic under an actually weak (not just absent) connection. Please
+  report anything that looks wrong.
 - Hebrew right-to-left layout and the voice-activity-detection thresholds have had limited
   real-device testing. Please report anything that looks wrong.
 - The keyboard occasionally fails silently; see

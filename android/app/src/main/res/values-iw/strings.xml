@@ -32,6 +32,12 @@
     <!-- Warning and Error Messages -->
     <string name="error_endpoint_unset">שגיאה: לא הוגדרה כתובת שרת (endpoint) בהגדרות.</string>
     <string name="error_apikey_unset">שגיאה: לא הוגדר מפתח API בהגדרות.</string>
+    <string name="error_local_model_not_downloaded">שגיאה: המודל המקומי שנבחר עדיין לא הורד. יש להוריד אותו בהגדרות.</string>
+    <string name="error_local_model_load_failed">שגיאה: טעינת קובץ המודל המקומי נכשלה. ייתכן שהקובץ פגום — כדאי לנסות להוריד אותו שוב.</string>
+    <string name="error_local_transcription_failed">שגיאה: תמלול מקומי נכשל.</string>
+    <string name="error_local_native_unavailable">שגיאה: מנוע התמלול המקומי אינו זמין במכשיר זה.</string>
+    <string name="notice_fell_back_to_local">תמלול ברשת נכשל — נעשה שימוש במודל המקומי במקום.</string>
+    <string name="notice_fell_back_to_api">המודל המקומי אינו זמין — נעשה שימוש בשרת הרשת במקום.</string>
 
     <!-- Settings -->
     <string name="whisper_to_input_settings_title">הגדרות QuickDictate</string>
@@ -81,6 +87,31 @@
 
     <string name="settings_add_trailing_space">הוספת רווח בסוף</string>
     <string name="settings_add_trailing_space_desc">האם להוסיף רווח אחרי הטקסט המתומלל.</string>
+
+    <!-- Local model -->
+    <string name="settings_transcription_mode">מצב תמלול</string>
+    <string name="settings_transcription_mode_desc">האם לתמלל דרך שרת הרשת שהוגדר למעלה, מודל מקומי במכשיר, או לבחור אוטומטית את מה שכנראה יהיה מהיר יותר וליפול חזרה לאפשרות השנייה אם היא נכשלת.</string>
+    <string name="settings_option_transcription_mode_api">רשת (API)</string>
+    <string name="settings_option_transcription_mode_local">מודל מקומי</string>
+    <string name="settings_option_transcription_mode_auto">אוטומטי</string>
+
+    <string name="settings_local_model_variant">מודל מקומי</string>
+    <string name="settings_local_model_variant_desc">איזה מודל Whisper מקומי להשתמש בו במכשיר. מודלים גדולים יותר מדויקים יותר — במיוחד בשפות שאינן אנגלית — אך איטיים וכבדים יותר להורדה.</string>
+    <string name="local_model_variant_small">Small (‏~466MB) — הכי מהיר, דיוק נמוך יותר</string>
+    <string name="local_model_variant_medium">Medium (‏~1.5GB) — איזון בין מהירות לדיוק</string>
+    <string name="local_model_variant_large_v3_turbo_q5">Large-v3-turbo, מקוונטז (‏~547MB) — מומלץ: דיוק קרוב ל-large-v3, הרבה יותר מהיר</string>
+    <string name="local_model_variant_large_v3_q5">Large-v3, מקוונטז (‏~1.1GB) — הדיוק הגבוה ביותר, הכי כבד</string>
+
+    <string name="settings_local_model_download">הורדת מודל</string>
+    <string name="settings_local_model_delete">מחיקת מודל</string>
+    <string name="settings_local_model_status_not_downloaded">טרם הורד.</string>
+    <string name="settings_local_model_status_downloading">מוריד… %1$d%%</string>
+    <string name="settings_local_model_status_downloaded">הורד (%1$s).</string>
+    <string name="settings_local_model_download_failed">הורדה נכשלה: %1$s</string>
+    <string name="keyboard_transcription_mode_api">API</string>
+    <string name="keyboard_transcription_mode_local">מקומי</string>
+    <string name="keyboard_transcription_mode_auto">אוטו׳</string>
+    <string name="keyboard_transcription_mode_hint">מצב תמלול: הקשה כדי לעבור בין שרת הרשת, המודל המקומי, ואוטומטי.</string>
 
     <!-- UI Language -->
     <string name="settings_ui_language">שפת ממשק</string>

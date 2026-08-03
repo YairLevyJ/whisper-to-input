@@ -234,6 +234,25 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/view_top_bar" />
 
+    <TextView
+        style="@style/RegularText"
+        android:id="@+id/btn_transcription_mode"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:background="?attr/selectableItemBackground"
+        android:clickable="true"
+        android:contentDescription="@string/keyboard_transcription_mode_hint"
+        android:focusable="true"
+        android:minWidth="40dp"
+        android:gravity="center"
+        android:padding="4dp"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:text="@string/keyboard_transcription_mode_api"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/btn_previous_ime" />
+
     <ImageButton
         style="@style/RegularImage"
         android:id="@+id/btn_settings"

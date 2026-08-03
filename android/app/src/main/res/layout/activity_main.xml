@@ -267,6 +267,52 @@
                 style="@style/SettingsSpinner"
                 android:entries="@array/settings_add_trailing_space_array" />
 
+            <!-- Transcription Mode -->
+            <TextView
+                android:id="@+id/label_transcription_mode"
+                style="@style/SettingsLabel"
+                android:text="@string/settings_transcription_mode" />
+            <TextView
+                android:id="@+id/description_transcription_mode"
+                style="@style/SettingsDescription"
+                android:text="@string/settings_transcription_mode_desc" />
+            <Spinner
+                android:id="@+id/spinner_transcription_mode"
+                style="@style/SettingsSpinner"
+                android:entries="@array/settings_transcription_mode_array" />
+
+            <!-- Local Model Variant -->
+            <TextView
+                android:id="@+id/label_local_model_variant"
+                style="@style/SettingsLabel"
+                android:text="@string/settings_local_model_variant" />
+            <TextView
+                android:id="@+id/description_local_model_variant"
+                style="@style/SettingsDescription"
+                android:text="@string/settings_local_model_variant_desc" />
+            <Spinner
+                android:id="@+id/spinner_local_model_variant"
+                style="@style/SettingsSpinner"
+                android:entries="@array/settings_local_model_variant_array" />
+            <TextView
+                android:id="@+id/label_local_model_status"
+                style="@style/SettingsDescription"
+                android:text="@string/settings_local_model_status_not_downloaded" />
+            <ProgressBar
+                android:id="@+id/pb_local_model_download"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:max="100"
+                android:visibility="gone" />
+            <Button
+                android:id="@+id/btn_local_model_download"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="@string/settings_local_model_download" />
+
         </LinearLayout>
     </ScrollView>
 

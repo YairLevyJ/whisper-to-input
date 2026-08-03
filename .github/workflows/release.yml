@@ -41,9 +41,13 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # Building whisper.cpp for two ABIs adds real time next to the plain Kotlin build.
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+        with:
+          # The local Whisper inference engine (whisper.cpp) is vendored as a submodule.
+          submodules: recursive
 
       - name: Compute version
         id: version
@@ -84,7 +88,7 @@ jobs:
       - uses: android-actions/setup-android@v3
         with:
           accept-android-sdk-licenses: true
-          packages: 'platforms;android-34 build-tools;34.0.0 platform-tools'
+          packages: 'platforms;android-34 build-tools;34.0.0 platform-tools ndk;26.1.10909125 cmake;3.22.1'
 
       - uses: gradle/actions/setup-gradle@v4
 

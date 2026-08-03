@@ -28,10 +28,12 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.provider.*
+import android.text.format.Formatter
 import android.view.View
 import android.widget.AdapterView
 import android.widget.Button
 import android.widget.EditText
+import android.widget.ProgressBar
 import android.widget.Spinner
 import android.widget.Toast
 import androidx.core.content.ContextCompat
@@ -42,6 +44,9 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.example.whispertoinput.local.LocalWhisperEngine
+import com.example.whispertoinput.local.ModelManager
+import com.example.whispertoinput.local.ModelVariant
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -49,6 +54,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 // 200 and 201 are an arbitrary values, as long as they do not conflict with each other
 private const val MICROPHONE_PERMISSION_REQUEST_CODE = 200
@@ -66,6 +72,12 @@ val PROMPT = stringPreferencesKey("prompt")
 val TEXT_SHORTCUTS = stringPreferencesKey("text-shortcuts")
 val AUTO_STOP_RECORDING = booleanPreferencesKey("auto-stop-recording")
 val AUDIO_EFFECTS = booleanPreferencesKey("audio-effects")
+val TRANSCRIPTION_MODE = stringPreferencesKey("transcription-mode")
+val LOCAL_MODEL_VARIANT = stringPreferencesKey("local-model-variant")
+
+const val TRANSCRIPTION_MODE_API = "api"
+const val TRANSCRIPTION_MODE_LOCAL = "local"
+const val TRANSCRIPTION_MODE_AUTO = "auto"
 
 // Stable values persisted for the dropdown settings. These must never be display strings:
 // display strings are translated, so storing them would break every comparison against them
@@ -286,6 +298,8 @@ class MainActivity : AppCompatActivity() {
                         // Deal with individual spinner
                         if (parent.id == R.id.spinner_speech_to_text_backend) {
                             onBackendSelected(optionValues[pos])
+                        } else if (parent.id == R.id.spinner_local_model_variant) {
+                            onLocalModelVariantSelected(optionValues[pos])
                         }
                     }
                     override fun onNothingSelected(parent: AdapterView<*>) { }
@@ -429,6 +443,17 @@ class MainActivity : AppCompatActivity() {
                     getString(R.string.settings_option_yes) to true,
                     getString(R.string.settings_option_no) to false,
                 ), false),
+                SettingStringDropdown(R.id.spinner_transcription_mode, TRANSCRIPTION_MODE, listOf(
+                    TRANSCRIPTION_MODE_API,
+                    TRANSCRIPTION_MODE_LOCAL,
+                    TRANSCRIPTION_MODE_AUTO
+                ), TRANSCRIPTION_MODE_API),
+                SettingStringDropdown(
+                    R.id.spinner_local_model_variant,
+                    LOCAL_MODEL_VARIANT,
+                    ModelVariant.ALL.map { it.id },
+                    ModelVariant.DEFAULT.id
+                ),
             )
             val btnApply: Button = findViewById(R.id.btn_settings_apply)
             btnApply.isEnabled = false
@@ -447,6 +472,92 @@ class MainActivity : AppCompatActivity() {
             }
             settingItems.map { settingItem -> settingItem.setup() }.joinAll()
             setupSettingItemsDone = true
+
+            currentLocalModelVariant = ModelVariant.byId(
+                readSettingForLocalModelInit()
+            )
+            setupLocalModelSection()
+            refreshLocalModelStatusUi()
+        }
+    }
+
+    private suspend fun readSettingForLocalModelInit(): String =
+        dataStore.data.map { preferences -> preferences[LOCAL_MODEL_VARIANT] }.first()
+            ?: ModelVariant.DEFAULT.id
+
+    // Below are local-model download/delete UI functions. Unlike the rest of the settings, the
+    // download itself is an immediate action tied to whichever variant is currently selected in
+    // the dropdown, rather than something that waits for the "Apply" button.
+    private var currentLocalModelVariant: ModelVariant = ModelVariant.DEFAULT
+    private var localModelDownloadJob: Job? = null
+
+    private fun onLocalModelVariantSelected(variantId: String) {
+        currentLocalModelVariant = ModelVariant.byId(variantId)
+        refreshLocalModelStatusUi()
+    }
+
+    private fun refreshLocalModelStatusUi() {
+        if (localModelDownloadJob?.isActive == true) return
+
+        val modelManager = ModelManager(this)
+        val statusLabel = findViewById<TextView>(R.id.label_local_model_status)
+        val downloadButton = findViewById<Button>(R.id.btn_local_model_download)
+        val progressBar = findViewById<ProgressBar>(R.id.pb_local_model_download)
+
+        progressBar.visibility = View.GONE
+        if (modelManager.isDownloaded(currentLocalModelVariant)) {
+            val sizeText = Formatter.formatShortFileSize(
+                this, modelManager.downloadedSizeBytes(currentLocalModelVariant)
+            )
+            statusLabel.text = getString(R.string.settings_local_model_status_downloaded, sizeText)
+            downloadButton.text = getString(R.string.settings_local_model_delete)
+        } else {
+            statusLabel.text = getString(R.string.settings_local_model_status_not_downloaded)
+            downloadButton.text = getString(R.string.settings_local_model_download)
+        }
+    }
+
+    private fun setupLocalModelSection() {
+        val downloadButton = findViewById<Button>(R.id.btn_local_model_download)
+        val progressBar = findViewById<ProgressBar>(R.id.pb_local_model_download)
+        val modelManager = ModelManager(this)
+
+        downloadButton.setOnClickListener {
+            if (localModelDownloadJob?.isActive == true) return@setOnClickListener
+
+            if (modelManager.isDownloaded(currentLocalModelVariant)) {
+                modelManager.delete(currentLocalModelVariant)
+                CoroutineScope(Dispatchers.Main).launch { LocalWhisperEngine.unload() }
+                refreshLocalModelStatusUi()
+                return@setOnClickListener
+            }
+
+            downloadButton.isEnabled = false
+            progressBar.visibility = View.VISIBLE
+            progressBar.progress = 0
+            var lastPercent = -1
+            localModelDownloadJob = CoroutineScope(Dispatchers.Main).launch {
+                try {
+                    modelManager.download(currentLocalModelVariant) { read, total ->
+                        if (total > 0) {
+                            val percent = (read * 100 / total).toInt()
+                            if (percent != lastPercent) {
+                                lastPercent = percent
+                                withContext(Dispatchers.Main) { progressBar.progress = percent }
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    Toast.makeText(
+                        this@MainActivity,
+                        getString(R.string.settings_local_model_download_failed, e.message ?: ""),
+                        Toast.LENGTH_LONG
+                    ).show()
+                } finally {
+                    downloadButton.isEnabled = true
+                    refreshLocalModelStatusUi()
+                }
+            }
         }
     }
 }

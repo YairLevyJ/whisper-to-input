@@ -59,6 +59,7 @@ class WhisperKeyboard {
     private var onEnter: () -> Unit = { }
     private var onSpaceBar: () -> Unit = { }
     private var shouldShowRetry: () -> Boolean = { false }
+    private var onCycleTranscriptionMode: () -> Unit = { }
 
     // Keyboard Status
     private var keyboardStatus: KeyboardStatus = KeyboardStatus.Idle
@@ -75,6 +76,7 @@ class WhisperKeyboard {
     private var buttonBackspace: BackspaceButton? = null
     private var buttonPreviousIme: ImageButton? = null
     private var buttonSettings: ImageButton? = null
+    private var buttonTranscriptionMode: TextView? = null
     private var micRippleContainer: ConstraintLayout? = null
     private var micRipples: Array<ImageView> = emptyArray()
 
@@ -91,6 +93,7 @@ class WhisperKeyboard {
         onSwitchIme: () -> Unit,
         onOpenSettings: () -> Unit,
         shouldShowRetry: () -> Boolean,
+        onCycleTranscriptionMode: () -> Unit,
     ): View {
         // Inflate the keyboard layout & assign views
         keyboardView = layoutInflater.inflate(R.layout.keyboard_view, null) as ConstraintLayout
@@ -104,6 +107,7 @@ class WhisperKeyboard {
         buttonBackspace = keyboardView!!.findViewById(R.id.btn_backspace) as BackspaceButton
         buttonPreviousIme = keyboardView!!.findViewById(R.id.btn_previous_ime) as ImageButton
         buttonSettings = keyboardView!!.findViewById(R.id.btn_settings) as ImageButton
+        buttonTranscriptionMode = keyboardView!!.findViewById(R.id.btn_transcription_mode) as TextView
         micRippleContainer = keyboardView!!.findViewById(R.id.mic_ripples) as ConstraintLayout
         micRipples = arrayOf(
             keyboardView!!.findViewById(R.id.mic_ripple_0) as ImageView,
@@ -123,6 +127,7 @@ class WhisperKeyboard {
         buttonCancel!!.setOnClickListener { onButtonCancelClick() }
         buttonRetry!!.setOnClickListener { onButtonRetryClick() }
         buttonSettings!!.setOnClickListener { onButtonSettingsClick() }
+        buttonTranscriptionMode!!.setOnClickListener { onButtonTranscriptionModeClick() }
         buttonBackspace!!.setBackspaceCallback { onButtonBackspaceClick() }
         buttonSpaceBar!!.setOnClickListener { onButtonSpaceBarClick() }
 
@@ -141,6 +146,7 @@ class WhisperKeyboard {
         this.onEnter = onEnter
         this.onSpaceBar = onSpaceBar
         this.shouldShowRetry = shouldShowRetry
+        this.onCycleTranscriptionMode = onCycleTranscriptionMode
 
         // Resets keyboard upon setup
         reset()
@@ -225,6 +231,17 @@ class WhisperKeyboard {
     private fun onButtonSettingsClick() {
         // Currently, this onClick only makes a call to onOpenSettings()
         this.onOpenSettings()
+    }
+
+    private fun onButtonTranscriptionModeClick() {
+        this.onCycleTranscriptionMode()
+    }
+
+    // Called by WhisperInputService whenever the effective transcription mode changes (on
+    // keyboard show, and right after the button itself cycles it), since the keyboard has no
+    // direct access to the persisted setting.
+    fun setTranscriptionModeLabel(label: String) {
+        buttonTranscriptionMode?.text = label
     }
 
     private fun onButtonMicClick() {
