@@ -1,6 +1,7 @@
 package com.example.whispertoinput
 
 import android.content.Context
+import com.example.whispertoinput.local.CpuInfo
 import com.example.whispertoinput.local.LocalWhisperEngine
 import com.example.whispertoinput.local.ModelManager
 import com.example.whispertoinput.local.ModelVariant
@@ -81,7 +82,7 @@ class TranscriptionCoordinator {
 
         val modelManager = ModelManager(context)
         val localReady = modelManager.isDownloaded(variant)
-        val threads = Runtime.getRuntime().availableProcessors().coerceIn(1, 4)
+        val threads = CpuInfo.recommendedThreadCount
         val audioFile = File(filename)
 
         suspend fun local(): String = applySuffix(
